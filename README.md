@@ -1,7 +1,7 @@
 This repo is adapted from [NIST's Round 17 example code](https://github.com/usnistgov/trojai-example/tree/cyber-apk-nov2023). 
 
 
-# Setup the Conda Environment
+# Setup the Conda environment
 
 (haven't check this yet)
 
@@ -20,34 +20,17 @@ python entrypoint.py infer --model_filepath ./models/id-00000001/model.pt --resu
 ```
 
 
-# Build a New Container 
+# Build a new container 
 
 ```
-sudo singularity build ./containers/example_trojan_detector.simg example_trojan_detector.def
+sudo singularity build ./cyber-apk-nov2023_sts_cosjac.simg example_trojan_detector.def
 ```
-
-
-
 
 # Container usage: Inferencing Mode
 
-(not updatad yet)
-
-Example usage for inferencing:
-   ```bash
-   python entrypoint.py infer \
-   --model_filepath <model_filepath> \
-   --result_filepath <result_filepath> \
-   --scratch_dirpath <scratch_dirpath> \
-   --examples_dirpath <examples_dirpath> \
-   --round_training_dataset_dirpath <round_training_dirpath> \
-   --metaparameters_filepath <metaparameters_filepath> \
-   --schema_filepath <schema_filepath> \
-   --learned_parameters_dirpath <learned_params_dirpath>
-   ```
-
-
-
+```
+singularity run --nv ./containers/cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
+```
 
 
 

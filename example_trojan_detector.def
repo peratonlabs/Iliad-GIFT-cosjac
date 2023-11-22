@@ -4,6 +4,7 @@ From: pytorch/pytorch:1.12.1-cuda11.3-cudnn8-runtime
 %files
     ./detector.py /
     ./entrypoint.py /
+    ./models /
     ./utils /
     ./metaparameters.json /
     ./metaparameters_schema.json /
