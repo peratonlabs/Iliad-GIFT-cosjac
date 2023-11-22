@@ -317,9 +317,11 @@ class Detector(AbstractDetector):
 
         # Inferences on examples to demonstrate how it is done for a round
         # This is not needed for the random forest classifier
-        cossim = self.inference_on_example_data(model, examples_dirpath, random_samples=True)
+        cossim1 = self.inference_on_example_data(model, examples_dirpath, random_samples=True)
         
-        probability = 0.5 - 0.1*cossim
+        cossim2 = self.inference_on_example_data(model, examples_dirpath, random_samples=False)
+        
+        probability = 0.5 - 0.05*cossim1  - 0.05*cossim2
         probability = str(probability)
         
 
