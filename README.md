@@ -3,12 +3,9 @@ This repo is adapted from [NIST's Round 17 example code](https://github.com/usni
 
 # Setup the Conda environment
 
-(haven't check this yet)
-
 1. `conda create --name r17 python=3.9 -y`
 2. `conda activate r17`
 3. Install required packages into this conda environment
- 
     - `conda install pytorch=1.12.1=py3.8_cuda10.2_cudnn7.6.5_0 -c pytorch`
     - `pip install tqdm jsonschema jsonargparse scikit-learn`
 
@@ -23,7 +20,7 @@ python entrypoint.py infer --model_filepath ./models/id-00000001/model.pt --resu
 # Build a new container 
 
 ```
-sudo singularity build ./cyber-apk-nov2023_sts_cosjac.simg example_trojan_detector.def
+sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac.simg example_trojan_detector.def
 ```
 
 # Container usage: Inferencing Mode

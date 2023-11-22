@@ -188,16 +188,10 @@ class Detector(AbstractDetector):
         self.write_metaparameters()
         logging.info("Configuration done!")
 
-    def inference_on_example_data(self, model, examples_dirpath):
-        """Method to demonstrate how to inference on a round's example data.
-
-        Args:
-            model: the pytorch model
-            examples_dirpath: the directory path for the round example data
-        """
+    def grab_inputs(self, examples_dirpath):
         inputs_np = None
         g_truths = []
-
+        
         for examples_dir_entry in os.scandir(examples_dirpath):
             if examples_dir_entry.is_file() and examples_dir_entry.name.endswith(".npy"):
                 base_example_name = os.path.splitext(examples_dir_entry.name)[0]
@@ -219,23 +213,55 @@ class Detector(AbstractDetector):
                 g_truths.append(data)
 
         g_truths_np = np.asarray(g_truths)
+        return inputs_np, g_truths_np
+    
+    
+
+    def inference_on_example_data(self, model, examples_dirpath, sample_model_dirpath='./models/id-00000001', random_samples=False):
+        """Method to demonstrate how to inference on a round's example data.
+
+        Args:
+            model: the pytorch model
+            examples_dirpath: the directory path for the round example data
+        """
+        
+        sample_model_path = os.path.join(sample_model_dirpath, 'model.pt')
+        sample_model_examples_dirpath = os.path.join(sample_model_dirpath, 'clean-example-data')
+        sample_model, _, _ = load_model(sample_model_path)
+        
+        if random_samples:
+            inputs_np, _ = self.grab_inputs(examples_dirpath)
+            inputs_np = np.random.randn(1000,*inputs_np.shape[1:])
+            print(inputs_np.shape)
+        
+        else:
+
+            inputs_np, _ = self.grab_inputs(examples_dirpath)
+            my_inputs_np, _ = self.grab_inputs(sample_model_examples_dirpath)
+        
+            inputs_np = np.concatenate([inputs_np,my_inputs_np])
+            g_truths_np = np.concatenate([g_truths_np,my_g_truths_np])
         
         
-        #p = model.predict(inputs_np)
-        
+        sample_model.model.eval()
         model.model.eval()
+        
         X = torch.from_numpy(inputs_np).float().to(model.device)
-        print(X.shape)
-        outputs = model.model(X)
+        
+        #print(X.shape)
         
         jac =  utils.utils.get_jac(model.model, X )
-        print(jac.shape)
+        ref_jac =  utils.utils.get_jac(model.model, X )
         
-
-        p = model.predict(inputs_np)
-
-        orig_test_acc = accuracy_score(g_truths_np, np.argmax(p.detach().numpy(), axis=1))
-        print("Model accuracy on example data {}: {}".format(examples_dirpath, orig_test_acc))
+        #print(jac.shape,jac.shape,jac.shape)
+        
+        
+        cossims = [utils.utils.cossim(jac[i], ref_jac[i])   for i in range(jac.shape[0]) ]
+        
+        
+        cossim = np.mean(cossims)
+        #print('cosine:',cossim)
+        return cossim
 
 
     def infer(
@@ -291,21 +317,25 @@ class Detector(AbstractDetector):
 
         # Inferences on examples to demonstrate how it is done for a round
         # This is not needed for the random forest classifier
-        self.inference_on_example_data(model, examples_dirpath)
+        cossim = self.inference_on_example_data(model, examples_dirpath, random_samples=True)
+        
+        probability = 0.5 - 0.1*cossim
+        probability = str(probability)
+        
 
-        X = (
-            use_feature_reduction_algorithm(layer_transform[model_class], flat_model)
-            * self.model_skew["__all__"]
-        )
+        #X = (
+        #    use_feature_reduction_algorithm(layer_transform[model_class], flat_model)
+        #    * self.model_skew["__all__"]
+        #)
 
-        try:
-            with open(self.model_filepath, "rb") as fp:
-                regressor: RandomForestRegressor = pickle.load(fp)
+        #try:
+        #    with open(self.model_filepath, "rb") as fp:
+        #        regressor: RandomForestRegressor = pickle.load(fp)
 
-            probability = str(regressor.predict(X)[0])
-        except Exception as e:
-            logging.info('Failed to run regressor, there may have an issue during fitting, using random for trojan probability: {}'.format(e))
-            probability = str(np.random.rand())
+        #    probability = str(regressor.predict(X)[0])
+        #except Exception as e:
+        #    logging.info('Failed to run regressor, there may have an issue during fitting, using random for trojan probability: {}'.format(e))
+        #    probability = str(np.random.rand())
         with open(result_filepath, "w") as fp:
             fp.write(probability)
 

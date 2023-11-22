@@ -90,7 +90,7 @@ def get_jac(model, obs ):
         obs.grad.data.zero_()
     
     
-    jac = np.stack(jacobian, axis=0).reshape(-1)
+    jac = np.stack(jacobian, axis=2)
     #avg_jac = np.mean(np.stack(jacobian, axis=0), axis=(1,2,3,4))
     return jac
 
