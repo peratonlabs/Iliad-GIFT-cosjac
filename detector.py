@@ -217,7 +217,7 @@ class Detector(AbstractDetector):
     
     
 
-    def inference_on_example_data(self, model, examples_dirpath, sample_model_dirpath='./models/id-00000001', random_samples=False):
+    def inference_on_example_data(self, model, examples_dirpath, sample_model_dirpath='/models/id-00000001', random_samples=False):
         """Method to demonstrate how to inference on a round's example data.
 
         Args:
@@ -225,22 +225,33 @@ class Detector(AbstractDetector):
             examples_dirpath: the directory path for the round example data
         """
         
-        sample_model_path = os.path.join(sample_model_dirpath, 'model.pt')
-        sample_model_examples_dirpath = os.path.join(sample_model_dirpath, 'clean-example-data')
-        sample_model, _, _ = load_model(sample_model_path)
+        
+        try: 
+            sample_model_path = os.path.join(sample_model_dirpath, 'model.pt')
+            sample_model_examples_dirpath = os.path.join(sample_model_dirpath, 'clean-example-data')
+            sample_model, _, _ = load_model(sample_model_path)
+            
+        except:
+            sample_model_dirpath = '.' + sample_model_dirpath
+            print(sample_model_dirpath, "not found. Trying",sample_model_dirpath)
+            sample_model_path = os.path.join('.',sample_model_dirpath, 'model.pt')
+            sample_model_examples_dirpath = os.path.join('.',sample_model_dirpath, 'clean-example-data')
+            sample_model, _, _ = load_model(sample_model_path)
         
         if random_samples:
-            inputs_np, _ = self.grab_inputs(examples_dirpath)
+            inputs_np, _ = self.grab_inputs(sample_model_examples_dirpath)
             inputs_np = np.random.randn(1000,*inputs_np.shape[1:])
             print(inputs_np.shape)
         
         else:
 
-            inputs_np, _ = self.grab_inputs(examples_dirpath)
+            #inputs_np, _ = self.grab_inputs(examples_dirpath)
             my_inputs_np, _ = self.grab_inputs(sample_model_examples_dirpath)
         
-            inputs_np = np.concatenate([inputs_np,my_inputs_np])
-            g_truths_np = np.concatenate([g_truths_np,my_g_truths_np])
+            #inputs_np = np.concatenate([inputs_np, my_inputs_np])
+            inputs_np = my_inputs_np
+            
+            #g_truths_np = np.concatenate([g_truths_np,my_g_truths_np])
         
         
         sample_model.model.eval()
@@ -322,6 +333,8 @@ class Detector(AbstractDetector):
         cossim2 = self.inference_on_example_data(model, examples_dirpath, random_samples=False)
         
         probability = 0.5 - 0.05*cossim1  - 0.05*cossim2
+        #probability = 0.5 - 0.1*cossim1  - 0.05*cossim2
+        #probability = 0.5 - 0.0*cossim1  - 0.1*cossim2
         probability = str(probability)
         
 
