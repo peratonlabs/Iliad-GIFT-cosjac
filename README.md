@@ -39,6 +39,7 @@ We use all provided sample data from the reference model and the test model. The
 ### Random Boolean data
 We generate 1000 random samples, uniform over [0,1]^991.
 - Results: 0.47833 AUC
+
 We also tried combining this with real data, no results of interest.
 ### Perturbed real data
 We copy the real samples a few hunded times, then randomly swap 1% of features.
