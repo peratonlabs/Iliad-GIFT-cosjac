@@ -38,11 +38,11 @@ def read_number_from_csv(file_path):
     except ValueError:
         print(f"Unable to convert the value to a number in file: {file_path}")
 
-def cossim(v1,v2):
+def cossim(v1,v2, eps=1e-8):
     #print(v1, v2)
 
-    v1 = v1/np.linalg.norm(v1)
-    v2 = v2/np.linalg.norm(v2)
+    v1 = v1/(np.linalg.norm(v1) + eps)
+    v2 = v2/(np.linalg.norm(v2) + eps)
     
     sim = (v1*v2).sum()
 

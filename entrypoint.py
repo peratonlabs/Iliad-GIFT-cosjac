@@ -116,6 +116,7 @@ if __name__ == "__main__":
         "instead be overwritten with the newly-configured parameters.",
         required=True,
     )
+    inf_parser.add_argument("--source_dataset_dirpath", type=str)
 
     inf_parser.set_defaults(func=inference_mode)
 

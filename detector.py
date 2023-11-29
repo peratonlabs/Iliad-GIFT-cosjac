@@ -217,7 +217,7 @@ class Detector(AbstractDetector):
     
     
 
-    def inference_on_example_data(self, model, examples_dirpath, sample_model_dirpath='/models/id-00000001', random_samples=False):
+    def inference_on_example_data(self, model, examples_dirpath, sample_model_dirpath='/models/id-00000001', mode='real'):
         """Method to demonstrate how to inference on a round's example data.
 
         Args:
@@ -238,21 +238,51 @@ class Detector(AbstractDetector):
             sample_model_examples_dirpath = os.path.join('.',sample_model_dirpath, 'clean-example-data')
             sample_model, _, _ = load_model(sample_model_path)
         
-        if random_samples:
+        if mode=='rand':
             inputs_np, _ = self.grab_inputs(sample_model_examples_dirpath)
-            inputs_np = np.random.randn(1000,*inputs_np.shape[1:])
-            print(inputs_np.shape)
+            #inputs_np = np.random.randn(1000,*inputs_np.shape[1:])
+            inputs_np = np.random.randint(2,size=[1000, inputs_np.shape[1]])
+            #print(inputs_np.shape)
         
-        else:
+        elif mode=='real' or mode=='realpert':
 
-            #inputs_np, _ = self.grab_inputs(examples_dirpath)
+            inputs_np, _ = self.grab_inputs(examples_dirpath)
             my_inputs_np, _ = self.grab_inputs(sample_model_examples_dirpath)
         
-            #inputs_np = np.concatenate([inputs_np, my_inputs_np])
-            inputs_np = my_inputs_np
-            
+            inputs_np = np.concatenate([inputs_np, my_inputs_np])
+            #inputs_np = my_inputs_np
             #g_truths_np = np.concatenate([g_truths_np,my_g_truths_np])
-        
+            
+            if mode=='realpert':
+                n_repeats = 100
+                p=0.01
+            
+                inputs_np = np.repeat(inputs_np, n_repeats, axis=0)
+                #print(inputs_np.shape, inputs_np.dtype)
+                
+                
+                flips = np.random.binomial(1, p, size=inputs_np.shape)
+                #print(flips.shape, flips.mean(),flips[0,:20], flips.dtype)
+                
+                #print(flips[0,:100])
+                
+                
+                #print(inputs_np[0,:100])
+                
+                #inputs_np_copy = inputs_np.copy()
+                inputs_np[flips==1] = 1 - inputs_np[flips==1]
+                #inputs_np[flips] = 1 - inputs_np[flips]
+                
+                #print((inputs_np==inputs_np_copy).sum())
+                
+                #print(inputs_np[0,:100])
+                #inputs_np
+            
+            
+            
+            
+                
+            
         
         sample_model.model.eval()
         model.model.eval()
@@ -262,7 +292,7 @@ class Detector(AbstractDetector):
         #print(X.shape)
         
         jac =  utils.utils.get_jac(model.model, X )
-        ref_jac =  utils.utils.get_jac(model.model, X )
+        ref_jac =  utils.utils.get_jac(sample_model.model, X )
         
         #print(jac.shape,jac.shape,jac.shape)
         
@@ -328,13 +358,16 @@ class Detector(AbstractDetector):
 
         # Inferences on examples to demonstrate how it is done for a round
         # This is not needed for the random forest classifier
-        cossim1 = self.inference_on_example_data(model, examples_dirpath, random_samples=True)
+        cossim1 = self.inference_on_example_data(model, examples_dirpath, mode='rand')
         
-        cossim2 = self.inference_on_example_data(model, examples_dirpath, random_samples=False)
+        cossim2 = self.inference_on_example_data(model, examples_dirpath, mode='real')
         
-        probability = 0.5 - 0.05*cossim1  - 0.05*cossim2
-        #probability = 0.5 - 0.1*cossim1  - 0.05*cossim2
+        cossim3 = self.inference_on_example_data(model, examples_dirpath, mode='realpert')
+        
+        #probability = 0.5 - 0.05*cossim1  - 0.05*cossim2
+        #probability = 0.5 - 0.1*cossim1  - 0.0*cossim2
         #probability = 0.5 - 0.0*cossim1  - 0.1*cossim2
+        probability = 0.5 - 0.1*cossim3
         probability = str(probability)
         
 
