@@ -44,4 +44,14 @@ We also tried combining this with real data, no results of interest.
 ### Perturbed real data
 We copy the real samples a few hunded times, then randomly swap 1% of features.
 - Results: 0.50778 AUC
+### cosine between average jacobian
+In previous experiments, I computed cosines between the testa and ref jacobians on different data samples, then averaged.  In this experiment, I avergaged the jacobians first, then took the cosine.
+- Results: 0.48403 AUC (random Boolean data)
+- Results: 0.6 AUC (perturbed real data)
+### cosine output
+I put in perturbed real data, computed the outputs, then computed the cosine between the output vectors
+- Results: 
+### evil config
+Since the average cosine jacobian with real data was so bad, I flipped the sign. This is evil.
+- Results:
 
