@@ -50,7 +50,8 @@ In previous experiments, I computed cosines between the testa and ref jacobians 
 - Results: 0.6 AUC (perturbed real data)
 ### cosine output
 I put in perturbed real data, computed the outputs, then computed the cosine between the output vectors
-- Results: 0.69292
+- Results: 0.69292 AUC
+- Results with different output scaling: 0.66472 AUC (this change shouldn't affect AUC, so disrepancy must be from sample noise)
 ### evil config
 Since the average cosine jacobian with real data was so bad, I flipped the sign. This is evil.
 - Results: 0.54722
