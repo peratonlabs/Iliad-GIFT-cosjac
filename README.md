@@ -53,7 +53,7 @@ singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath 
    k. Log into your Google account - perspecta.gift@gmail.com
    l. Go back to the SSH window – Finish configuration by selecting No to google team or so.
    m. Test API connection with google drive
-   	i.  rclone lsd gdrive:
+   	i.  rclone ls gdrive:
         ii. Upload container - rclone copy container_name gdrive:/
 
    Complete description available at - https://www.youtube.com/watch?v=n7yB1x2vhKw
