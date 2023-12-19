@@ -68,6 +68,7 @@ We use all provided sample data from the reference model and the test model. The
 ### Random Boolean data
 We generate 1000 random samples, uniform over [0,1]^991.
 - Results: 0.47833 AUC
+
 We also tried combining this with real data, no results of interest.
 ### Perturbed real data
 We copy the real samples a few hunded times, then randomly swap 1% of features.
@@ -76,14 +77,19 @@ We copy the real samples a few hunded times, then randomly swap 1% of features.
 In previous experiments, I computed cosines between the testa and ref jacobians on different data samples, then averaged.  In this experiment, I avergaged the jacobians first, then took the cosine.
 - Results: 0.48403 AUC (random Boolean data)
 - Results:  0.83972 AUC (perturbed real data) (NOT 0.6)
+
 We copy 852 of the real testing samples a few times, then randomly swap 1% of features.
 - Results: 0.79 AUC
+
 We copy all the real testing samples a few times, then randomly swap 1% of features.
 - Results: XX AUC
+
 We copy all the real training samples a few times, then randomly swap 1% of features.
 - Results: XX AUC
+
 We use all the real training samples.
 - Results: XX AUC
+
 We use all the real testing samples.
 - Results: XX AUC
 ### cosine output
