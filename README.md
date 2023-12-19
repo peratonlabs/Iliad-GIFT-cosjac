@@ -82,7 +82,7 @@ We copy 852 of the real testing samples a few times, then randomly swap 1% of fe
 - Results: 0.79 AUC
 
 We copy all the real testing samples a few times, then randomly swap 1% of features.
-- Results: XX AUC
+- Results: 0.79111 AUC
 
 We copy all the real training samples a few times, then randomly swap 1% of features.
 - Results: XX AUC
