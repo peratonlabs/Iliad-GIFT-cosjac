@@ -76,7 +76,7 @@ We copy the real samples a few hunded times, then randomly swap 1% of features.
 ### cosine between average jacobian
 In previous experiments, I computed cosines between the testa and ref jacobians on different data samples, then averaged.  In this experiment, I avergaged the jacobians first, then took the cosine.
 - Results: 0.48403 AUC (random Boolean data)
-- Results: 0.6 AUC (perturbed real data)
+- Results:  0.83972 AUC (perturbed real data) (NOT 0.6)
 ### cosine output
 I put in perturbed real data, computed the outputs, then computed the cosine between the output vectors
 - Results: 0.69292 AUC
