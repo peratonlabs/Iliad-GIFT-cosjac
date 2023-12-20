@@ -101,7 +101,7 @@ We copy all the real training samples 5 times, then randomly swap p*100% of feat
 - p=0.02: Results: 0.80694 AUC
 - p=0.03: Results: 0.80028 AUC
 - p=0.05: Results: 0.77833 AUC
-- p=0.1: Results: 0.31778 AUC
+- p=0.1: Results: 0.31778 AUC (!)
 
 ### cosine output
 I put in perturbed real data, computed the outputs, then computed the cosine between the output vectors
