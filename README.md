@@ -95,12 +95,13 @@ We use all the real testing samples.
 ### Experiments with p
 We copy all the real training samples 5 times, then randomly swap p*100% of features.
 - p=0.01: Results: 0.79139 AUC
+- p=0.005: Results: xx AUC
 - p=0.02: Results: xx AUC
 - p=0.03: Results: xx AUC
 - p=0.05: Results: xx AUC
 - p=0.1: Results: xx AUC
 - p=0.002: Results: xx AUC
-- p=0.005: Results: xx AUC
+
 ### cosine output
 I put in perturbed real data, computed the outputs, then computed the cosine between the output vectors
 - Results: 0.69292 AUC
