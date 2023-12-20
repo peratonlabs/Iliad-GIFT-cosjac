@@ -85,13 +85,13 @@ We copy all the real testing samples a few times, then randomly swap 1% of featu
 - Results: 0.79111 AUC
 
 We copy all the real training samples a few times, then randomly swap 1% of features.
-- Results: XX AUC
+- Results: 0.79139 AUC
 
 We use all the real training samples.
 - Results: XX AUC
 
 We use all the real testing samples.
-- Results: XX AUC
+- Results: 0.50111 AUC
 ### cosine output
 I put in perturbed real data, computed the outputs, then computed the cosine between the output vectors
 - Results: 0.69292 AUC
