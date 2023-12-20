@@ -95,7 +95,7 @@ We use all the real testing samples.
 ### Experiments with p
 We copy all the real training samples 5 times, then randomly swap p*100% of features.
 - p=0.01: Results: 0.79139 AUC
-- p=0.005: Results: xx AUC
+- p=0.005: Results: 0.77 AUC
 - p=0.02: Results: xx AUC
 - p=0.03: Results: xx AUC
 - p=0.05: Results: xx AUC
