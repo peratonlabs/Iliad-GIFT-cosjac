@@ -88,7 +88,7 @@ We copy all the real training samples a few times, then randomly swap 1% of feat
 - Results: 0.79139 AUC
 
 We use all the real training samples.
-- Results: XX AUC
+- Results: 0.49472 AUC
 
 We use all the real testing samples.
 - Results: 0.50111 AUC
