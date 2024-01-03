@@ -8,6 +8,7 @@ from os.path import join, exists, basename
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import accuracy_score
+import shap
 
 from tqdm import tqdm
 import torch
@@ -238,14 +239,19 @@ class Detector(AbstractDetector):
             sample_model_examples_dirpath = os.path.join('.',sample_model_dirpath, 'clean-example-data')
             sample_model, _, _ = load_model(sample_model_path)
         
+        print("sample_model_path:", sample_model_path)
+
         if mode=='rand':
+            print("sample_model_examples_dirpath:", sample_model_examples_dirpath)
             inputs_np, _ = self.grab_inputs(sample_model_examples_dirpath)
             #inputs_np = np.random.randn(1000,*inputs_np.shape[1:])
             inputs_np = np.random.randint(2,size=[1000, inputs_np.shape[1]])
             #print(inputs_np.shape)
         
         elif mode=='real' or mode=='realpert':
-
+            
+            print("examples_dirpath:", examples_dirpath)
+            print("sample_model_examples_dirpath:", sample_model_examples_dirpath)
             inputs_np, _ = self.grab_inputs(examples_dirpath)
             my_inputs_np, _ = self.grab_inputs(sample_model_examples_dirpath)
         
@@ -261,44 +267,37 @@ class Detector(AbstractDetector):
                 #print(inputs_np.shape, inputs_np.dtype)
                 
                 
-                flips = np.random.binomial(1, p, size=inputs_np.shape)
-                #print(flips.shape, flips.mean(),flips[0,:20], flips.dtype)
-                
-                #print(flips[0,:100])
-                
-                
-                #print(inputs_np[0,:100])
-                
-                #inputs_np_copy = inputs_np.copy()
+                flips = np.random.binomial(1, p, size=inputs_np.shape)                
                 inputs_np[flips==1] = 1 - inputs_np[flips==1]
-                #inputs_np[flips] = 1 - inputs_np[flips]
-                
-                #print((inputs_np==inputs_np_copy).sum())
-                
-                #print(inputs_np[0,:100])
-                #inputs_np
-            
-            
-            
-            
-                
-            
+                        
         
+        print("inputs_np shape:", inputs_np.shape)
+
         sample_model.model.eval()
         model.model.eval()
         
         X = torch.from_numpy(inputs_np).float().to(model.device)
-        
+
+        shap.initjs()
+        print("X shape:", X.shape)
+        print(model.model(X))
+        explainer = shap.GradientExplainer(model.model, [X])
+        shap_values = explainer.shap_values([X])        
+        print("Shape of shap values arrays:", shap_values[0].shape, shap_values[1].shape)
         #print(X.shape)
         
+        output = model.model(X)
+        print("output shape:", output.shape)
         jac =  utils.utils.get_jac(model.model, X )
         ref_jac =  utils.utils.get_jac(sample_model.model, X )
-        
+
+        print("jac shape:", jac.shape) 
+        print("ref shape:", ref_jac.shape)       
         #print(jac.shape,jac.shape,jac.shape)
         
-        
+        print("jac[0] shape:", jac[0].shape)
         cossims = [utils.utils.cossim(jac[i], ref_jac[i])   for i in range(jac.shape[0]) ]
-        
+
         
         cossim = np.mean(cossims)
         #print('cosine:',cossim)
@@ -352,22 +351,24 @@ class Detector(AbstractDetector):
 
         layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
 
+        print("Possible reference model - filepath:", model_filepath)
         model, model_repr, model_class = load_model(model_filepath)
         model_repr = pad_model(model_repr, model_class, models_padding_dict)
         flat_model = flatten_model(model_repr, model_layer_map[model_class])
 
+        print("examples_dirpath:", examples_dirpath)
         # Inferences on examples to demonstrate how it is done for a round
         # This is not needed for the random forest classifier
         cossim1 = self.inference_on_example_data(model, examples_dirpath, mode='rand')
         
-        cossim2 = self.inference_on_example_data(model, examples_dirpath, mode='real')
+        #cossim2 = self.inference_on_example_data(model, examples_dirpath, mode='real')
         
-        cossim3 = self.inference_on_example_data(model, examples_dirpath, mode='realpert')
+        #cossim3 = self.inference_on_example_data(model, examples_dirpath, mode='realpert')
         
         #probability = 0.5 - 0.05*cossim1  - 0.05*cossim2
         #probability = 0.5 - 0.1*cossim1  - 0.0*cossim2
         #probability = 0.5 - 0.0*cossim1  - 0.1*cossim2
-        probability = 0.5 - 0.1*cossim3
+        probability = 0.5 - 0.1*cossim1
         probability = str(probability)
         
 
