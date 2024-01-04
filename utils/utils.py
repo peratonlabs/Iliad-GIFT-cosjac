@@ -5,6 +5,10 @@ import csv
 import json
 from torch.nn import Sequential
 from copy import deepcopy
+
+import shap
+from utils.drebinnn import DrebinNN
+
 # from utils.models import load_model, load_models_dirpath, ImageACModel, ResNetACModel
 # from sklearn.ensemble import RandomForestRegressor
 
@@ -66,16 +70,25 @@ def get_quants(x, n):
     q = np.linspace(0, 1, n)
     return np.quantile(x, q)
 
+def get_shapley_values(model: DrebinNN, 
+                       dataset: list, 
+                       test_dataset: list) -> list:
+    '''
+    Approximate Shapley values for the deep neural network model using the 
+    backround dataset
+    Input: model - deep neural network model
+           dataset - backround dataset
+           test_dataset - shapley values will be computed for the test dataset
+    Output: list of torch tensors with shapley values
+    '''
+    shap.initjs()
+    explainer_model = shap.GradientExplainer(model, dataset)
+    shap_values_model = explainer_model.shap_values(test_dataset)
+    return shap_values_model
 
 
+def get_jac(model: DrebinNN, obs ):
 
-def get_jac(model, obs ):
-
-    #obs_new = {k:v for k,v in obs.items()}
-    #obs_new["image"] = obs["image"].to(torch.float32)
-    
-    #obs = obs_new
-    
     obs.requires_grad = True
     output = model(obs)
     jacobian = []

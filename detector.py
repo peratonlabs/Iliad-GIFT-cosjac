@@ -13,6 +13,7 @@ import shap
 from tqdm import tqdm
 import torch
 import utils.utils
+from utils.utils import get_shapley_values
 from utils.abstract import AbstractDetector
 from utils.flatten import flatten_model, flatten_models
 from utils.healthchecks import check_models_consistency
@@ -23,6 +24,7 @@ from utils.reduction import (
     fit_feature_reduction_algorithm,
     use_feature_reduction_algorithm,
 )
+
 
 class Detector(AbstractDetector):
     def __init__(self, metaparameter_filepath, learned_parameters_dirpath):
@@ -216,9 +218,8 @@ class Detector(AbstractDetector):
         g_truths_np = np.asarray(g_truths)
         return inputs_np, g_truths_np
     
-    
 
-    def inference_on_example_data(self, model, examples_dirpath, sample_model_dirpath='/models/id-00000001', mode='real'):
+    def inference_on_example_data(self, model, method: str, examples_dirpath, sample_model_dirpath='/models/id-00000001', mode='real'):
         """Method to demonstrate how to inference on a round's example data.
 
         Args:
@@ -278,31 +279,23 @@ class Detector(AbstractDetector):
         
         X = torch.from_numpy(inputs_np).float().to(model.device)
 
-        shap.initjs()
-        print("X shape:", X.shape)
-        print(model.model(X))
-        explainer_model = shap.GradientExplainer(model.model, [X])
-        shap_values_model = explainer_model.shap_values([X])        
-        print("Shape of the shap values arrays:", shap_values_model[0].shape, shap_values_model[1].shape)
-        #print(X.shape)
-        
-        explainer_sample_model = shap.GradientExplainer(sample_model.model, [X])
-        shap_values_sample_model = explainer_sample_model.shap_values([X])
-        print("Shape of the shap values arrays:", shap_values_sample_model[0].shape, shap_values_sample_model[1].shape)
-        
-        jac =  utils.utils.get_jac(model.model, X )
-        ref_jac =  utils.utils.get_jac(sample_model.model, X )
 
-        print("jac shape:", jac.shape) 
-        print("ref shape:", ref_jac.shape)       
-        #print(jac.shape,jac.shape,jac.shape)
+        if method == 'shap':
+            test_feature = get_shapley_values(model.model, [X], [X])        
+            print("Shape of the shap values arrays:", test_feature[0].shape, test_feature[1].shape)
+            print("Type of shap_values_model:", type(test_feature), type(test_feature[0]))
+            test_feature = np.stack(test_feature, axis=2)
         
-        print("jac[0] shape:", jac[0].shape)
-        cossims = [utils.utils.cossim(jac[i], ref_jac[i])   for i in range(jac.shape[0]) ]
+            ref_features = get_shapley_values(sample_model.model, [X], [X])
+            print("Shape of the shap values arrays:", ref_features[0].shape, ref_features[1].shape)
+            ref_features = np.stack(ref_features,  axis=2)
+        else:
+            test_feature =  utils.utils.get_jac(model.model, X )
+            ref_features =  utils.utils.get_jac(sample_model.model, X )
 
+        cossims = [utils.utils.cossim(test_feature[i], ref_features[i])   for i in range(test_feature.shape[0]) ]
         
         cossim = np.mean(cossims)
-        #print('cosine:',cossim)
         return cossim
 
 
@@ -365,7 +358,7 @@ class Detector(AbstractDetector):
         
         #cossim2 = self.inference_on_example_data(model, examples_dirpath, mode='real')
         
-        cossim3 = self.inference_on_example_data(model, examples_dirpath, mode='realpert')
+        cossim3 = self.inference_on_example_data(model, 'shap', examples_dirpath, mode='realpert')
         
         #probability = 0.5 - 0.05*cossim1  - 0.05*cossim2
         #probability = 0.5 - 0.1*cossim1  - 0.0*cossim2
