@@ -281,13 +281,15 @@ class Detector(AbstractDetector):
         shap.initjs()
         print("X shape:", X.shape)
         print(model.model(X))
-        explainer = shap.GradientExplainer(model.model, [X])
-        shap_values = explainer.shap_values([X])        
-        print("Shape of shap values arrays:", shap_values[0].shape, shap_values[1].shape)
+        explainer_model = shap.GradientExplainer(model.model, [X])
+        shap_values_model = explainer_model.shap_values([X])        
+        print("Shape of the shap values arrays:", shap_values_model[0].shape, shap_values_model[1].shape)
         #print(X.shape)
         
-        output = model.model(X)
-        print("output shape:", output.shape)
+        explainer_sample_model = shap.GradientExplainer(sample_model.model, [X])
+        shap_values_sample_model = explainer_sample_model.shap_values([X])
+        print("Shape of the shap values arrays:", shap_values_sample_model[0].shape, shap_values_sample_model[1].shape)
+        
         jac =  utils.utils.get_jac(model.model, X )
         ref_jac =  utils.utils.get_jac(sample_model.model, X )
 
@@ -359,16 +361,16 @@ class Detector(AbstractDetector):
         print("examples_dirpath:", examples_dirpath)
         # Inferences on examples to demonstrate how it is done for a round
         # This is not needed for the random forest classifier
-        cossim1 = self.inference_on_example_data(model, examples_dirpath, mode='rand')
+        #cossim1 = self.inference_on_example_data(model, examples_dirpath, mode='rand')
         
         #cossim2 = self.inference_on_example_data(model, examples_dirpath, mode='real')
         
-        #cossim3 = self.inference_on_example_data(model, examples_dirpath, mode='realpert')
+        cossim3 = self.inference_on_example_data(model, examples_dirpath, mode='realpert')
         
         #probability = 0.5 - 0.05*cossim1  - 0.05*cossim2
         #probability = 0.5 - 0.1*cossim1  - 0.0*cossim2
         #probability = 0.5 - 0.0*cossim1  - 0.1*cossim2
-        probability = 0.5 - 0.1*cossim1
+        probability = 0.5 - 0.1*cossim3
         probability = str(probability)
         
 
