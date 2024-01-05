@@ -252,10 +252,13 @@ class Detector(AbstractDetector):
         elif mode=='real' or mode=='realpert':
             
             print("examples_dirpath:", examples_dirpath)
-            print("sample_model_examples_dirpath:", sample_model_examples_dirpath)
             inputs_np, _ = self.grab_inputs(examples_dirpath)
+            print("inputs np shape:", inputs_np.shape)
+            print("sample_model_examples_dirpath:", sample_model_examples_dirpath)
             my_inputs_np, _ = self.grab_inputs(sample_model_examples_dirpath)
-        
+            print("my_inputs_np shape:", my_inputs_np.shape)
+
+
             inputs_np = np.concatenate([inputs_np, my_inputs_np])
             #inputs_np = my_inputs_np
             #g_truths_np = np.concatenate([g_truths_np,my_g_truths_np])
@@ -271,13 +274,24 @@ class Detector(AbstractDetector):
                 flips = np.random.binomial(1, p, size=inputs_np.shape)                
                 inputs_np[flips==1] = 1 - inputs_np[flips==1]
                         
-        
-        print("inputs_np shape:", inputs_np.shape)
+        elif mode == 'direct_deriv':
+
+            inputs_np, _ = self.grab_inputs(examples_dirpath)
+            
+            list_new_vectors = []
+            for i in range(inputs_np.shape[0]):
+                list_new_vectors.append(np.abs(np.eye(inputs_np.shape[1]) - inputs_np[i,:]))
+            perturbed_inputs_np = np.concatenate(list_new_vectors, axis=0)
+
 
         sample_model.model.eval()
         model.model.eval()
         
-        X = torch.from_numpy(inputs_np).float().to(model.device)
+        if mode == 'direct_deriv':
+            X1 = torch.from_numpy(inputs_np).float().to(model.device)
+            X2 = torch.from_numpy(perturbed_inputs_np).float().to(model.device) 
+        else:
+            X = torch.from_numpy(inputs_np).float().to(model.device)
 
 
         if method == 'shap':
@@ -289,9 +303,38 @@ class Detector(AbstractDetector):
             ref_features = get_shapley_values(sample_model.model, [X], [X])
             print("Shape of the shap values arrays:", ref_features[0].shape, ref_features[1].shape)
             ref_features = np.stack(ref_features,  axis=2)
-        else:
+        
+        elif method == 'jac':
             test_feature =  utils.utils.get_jac(model.model, X )
+            print("test_feature shape:", test_feature)
             ref_features =  utils.utils.get_jac(sample_model.model, X )
+        
+        elif method == 'direct_deriv':
+            
+            output_ref = model.model(X1)
+            output_perturbed_ref = model.model(X2)
+            print("type of output_ref:", type(output_ref))
+            print("output ref shape:", output_ref.shape)
+            print("output perturbed ref shape:", output_perturbed_ref.shape)
+            dim1 = output_ref.shape[0]
+            dim2 = X1.shape[1]
+            
+            print("dim1, dim2:", dim1, dim2)
+            discrete_derivatives = []
+            for i in range(dim1):
+                discrete_derivatives.append(output_ref[i,:] - output_perturbed_ref[i*dim2:(i+1)*dim2])
+            test_feature = np.stack(discrete_derivatives, axis=0)
+
+
+            output = sample_model.model(X1)
+            output_perturbed = sample_model.model(X2)
+            print("output shape:", output.shape)
+            print("output_perturbed shape:", output_perturbed.shape)
+            discrete_derivatives = []
+            for i in range(dim1):
+                discrete_derivatives.append(output[i,:] - output_perturbed[i*dim2:(i+1)*dim2])
+            ref_features = np.stack(discrete_derivatives, axis=0)
+
 
         cossims = [utils.utils.cossim(test_feature[i], ref_features[i])   for i in range(test_feature.shape[0]) ]
         
@@ -358,7 +401,7 @@ class Detector(AbstractDetector):
         
         #cossim2 = self.inference_on_example_data(model, examples_dirpath, mode='real')
         
-        cossim3 = self.inference_on_example_data(model, 'shap', examples_dirpath, mode='realpert')
+        cossim3 = self.inference_on_example_data(model, 'direct_deriv', examples_dirpath, mode='direct_deriv')
         
         #probability = 0.5 - 0.05*cossim1  - 0.05*cossim2
         #probability = 0.5 - 0.1*cossim1  - 0.0*cossim2
