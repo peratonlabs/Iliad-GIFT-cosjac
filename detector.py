@@ -219,7 +219,8 @@ class Detector(AbstractDetector):
         return inputs_np, g_truths_np
     
 
-    def inference_on_example_data(self, model, method: str, examples_dirpath, sample_model_dirpath='/models/id-00000001', mode='real'):
+    def inference_on_example_data(self, model, method: str, agg: str, 
+                                  examples_dirpath, sample_model_dirpath='/models/id-00000001', mode='real'):
         """Method to demonstrate how to inference on a round's example data.
 
         Args:
@@ -298,47 +299,51 @@ class Detector(AbstractDetector):
             test_feature = get_shapley_values(model.model, [X], [X])        
             print("Shape of the shap values arrays:", test_feature[0].shape, test_feature[1].shape)
             print("Type of shap_values_model:", type(test_feature), type(test_feature[0]))
-            test_feature = np.stack(test_feature, axis=2)
+            test_features = np.stack(test_feature, axis=2)
         
             ref_features = get_shapley_values(sample_model.model, [X], [X])
             print("Shape of the shap values arrays:", ref_features[0].shape, ref_features[1].shape)
             ref_features = np.stack(ref_features,  axis=2)
         
         elif method == 'jac':
-            test_feature =  utils.utils.get_jac(model.model, X )
-            print("test_feature shape:", test_feature)
+            test_features =  utils.utils.get_jac(model.model, X )
             ref_features =  utils.utils.get_jac(sample_model.model, X )
-        
+
         elif method == 'direct_deriv':
             
             output_ref = model.model(X1)
             output_perturbed_ref = model.model(X2)
-            print("type of output_ref:", type(output_ref))
-            print("output ref shape:", output_ref.shape)
-            print("output perturbed ref shape:", output_perturbed_ref.shape)
             dim1 = output_ref.shape[0]
             dim2 = X1.shape[1]
             
-            print("dim1, dim2:", dim1, dim2)
             discrete_derivatives = []
             for i in range(dim1):
                 discrete_derivatives.append(output_ref[i,:] - output_perturbed_ref[i*dim2:(i+1)*dim2])
-            test_feature = np.stack(discrete_derivatives, axis=0)
-
+            test_features = torch.stack(discrete_derivatives, dim=0)
 
             output = sample_model.model(X1)
             output_perturbed = sample_model.model(X2)
-            print("output shape:", output.shape)
-            print("output_perturbed shape:", output_perturbed.shape)
             discrete_derivatives = []
             for i in range(dim1):
                 discrete_derivatives.append(output[i,:] - output_perturbed[i*dim2:(i+1)*dim2])
-            ref_features = np.stack(discrete_derivatives, axis=0)
+            ref_features = torch.stack(discrete_derivatives, dim=0)
+
+            test_features = test_features.cpu().detach().numpy()
+            ref_features = ref_features.cpu().detach().numpy()
 
 
-        cossims = [utils.utils.cossim(test_feature[i], ref_features[i])   for i in range(test_feature.shape[0]) ]
-        
-        cossim = np.mean(cossims)
+
+        if agg=='avgcos':
+            #cossims = [utils.utils.cossim(test_features[i], ref_features[i])   for i in range(test_features.shape[0]) ]
+            cossim = utils.utils.cossim(test_features, ref_features)
+        elif agg=='cosavg':
+            test_features = test_features.mean(axis=0)
+            ref_features = ref_features.mean(axis=0)
+            cossim = utils.utils.cossim(test_features, ref_features)
+
+        #cossims = [utils.utils.cossim(test_feature[i], ref_features[i])   for i in range(test_feature.shape[0]) ]
+        #cossim = np.mean(cossims)
+
         return cossim
 
 
@@ -401,7 +406,10 @@ class Detector(AbstractDetector):
         
         #cossim2 = self.inference_on_example_data(model, examples_dirpath, mode='real')
         
-        cossim3 = self.inference_on_example_data(model, 'direct_deriv', examples_dirpath, mode='direct_deriv')
+        cossim3 = self.inference_on_example_data(model, 'direct_deriv','cosavg', examples_dirpath, mode='direct_deriv') # Fifth experiment (Not launched)
+        #cossim3 = self.inference_on_example_data(model, 'jac','cosavg', examples_dirpath, mode='realpert') # First two experiments
+        #cossim3 = self.inference_on_example_data(model, 'shap','cosavg', examples_dirpath, mode='realpert') # Third experiment
+        #cossim3 = self.inference_on_example_data(model, 'shap','avgcos', examples_dirpath, mode='realpert') # Fourth experiment
         
         #probability = 0.5 - 0.05*cossim1  - 0.05*cossim2
         #probability = 0.5 - 0.1*cossim1  - 0.0*cossim2
