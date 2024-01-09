@@ -472,10 +472,10 @@ class Detector(AbstractDetector):
         
         #cossim2 = self.inference_on_example_data(model, examples_dirpath, mode='real')
         
-        #cossim3 = self.inference_on_example_data(model, 'discrete_deriv','cosavg', examples_dirpath, mode='discrete_deriv') # Fifth experiment (Not launched)
-        cossim3 = self.inference_on_example_data(model, 'jac','cosavg', examples_dirpath, True, mode='realpert') # First two experiments
-        #cossim3 = self.inference_on_example_data(model, 'shap','cosavg', examples_dirpath, mode='realpert') # Third experiment
-        #cossim3 = self.inference_on_example_data(model, 'shap','avgcos', examples_dirpath, mode='realpert') # Fourth experiment
+        #cossim3 = self.inference_on_example_data(model, 'discrete_deriv','cosavg', examples_dirpath, mode='discrete_deriv') 
+        cossim3 = self.inference_on_example_data(model, 'jac','cosavg', examples_dirpath, True, mode='realpert') 
+        #cossim3 = self.inference_on_example_data(model, 'shap','cosavg', examples_dirpath, mode='realpert') 
+        #cossim3 = self.inference_on_example_data(model, 'shap','avgcos', examples_dirpath, mode='realpert') 
         
         #probability = 0.5 - 0.05*cossim1  - 0.05*cossim2
         #probability = 0.5 - 0.1*cossim1  - 0.0*cossim2
