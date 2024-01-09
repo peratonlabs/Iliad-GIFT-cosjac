@@ -6,19 +6,21 @@ from os import listdir, makedirs
 from os.path import join, exists, basename
 
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import accuracy_score
 import shap
 
 from tqdm import tqdm
 import torch
+import torch.nn.functional as F
 import utils.utils
-from utils.utils import get_shapley_values
+from utils.utils import get_shapley_values, verify_binary_classifier
 from utils.abstract import AbstractDetector
 from utils.flatten import flatten_model, flatten_models
 from utils.healthchecks import check_models_consistency
 from utils.models import create_layer_map, load_model, \
-    load_models_dirpath
+    load_models_dirpath, build_random_forest_classifier
 from utils.padding import create_models_padding, pad_model
 from utils.reduction import (
     fit_feature_reduction_algorithm,
@@ -216,11 +218,10 @@ class Detector(AbstractDetector):
                 g_truths.append(data)
 
         g_truths_np = np.asarray(g_truths)
-        return inputs_np, g_truths_np
-    
+        return inputs_np, g_truths_np    
 
     def inference_on_example_data(self, model, method: str, agg: str, 
-                                  examples_dirpath, sample_model_dirpath='/models/id-00000001', mode='real'):
+                                  examples_dirpath, drebinn_data: bool, sample_model_dirpath='/models/id-00000001', mode='real'):
         """Method to demonstrate how to inference on a round's example data.
 
         Args:
@@ -233,13 +234,24 @@ class Detector(AbstractDetector):
             sample_model_path = os.path.join(sample_model_dirpath, 'model.pt')
             sample_model_examples_dirpath = os.path.join(sample_model_dirpath, 'clean-example-data')
             sample_model, _, _ = load_model(sample_model_path)
-            
+            if drebinn_data:
+                feature_importance_index = np.load(os.path.join(sample_model_dirpath, 'feature_importance/index_array.npy'))
+            #    drebinn_x_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy'))
+            #    drebinn_y_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy'))
+            #    drebinn_x_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy'))
+            #    drebinn_y_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy'))        
         except:
             sample_model_dirpath = '.' + sample_model_dirpath
             print(sample_model_dirpath, "not found. Trying",sample_model_dirpath)
             sample_model_path = os.path.join('.',sample_model_dirpath, 'model.pt')
             sample_model_examples_dirpath = os.path.join('.',sample_model_dirpath, 'clean-example-data')
             sample_model, _, _ = load_model(sample_model_path)
+            if drebinn_data:
+                feature_importance_index = np.load(os.path.join(sample_model_dirpath, 'feature_importance/index_array.npy'))
+            #    drebinn_x_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy'))
+            #    drebinn_y_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy'))
+            #    drebinn_x_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy'))
+            #    drebinn_y_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy'))
         
         print("sample_model_path:", sample_model_path)
 
@@ -284,10 +296,44 @@ class Detector(AbstractDetector):
                 list_new_vectors.append(np.abs(np.eye(inputs_np.shape[1]) - inputs_np[i,:]))
             perturbed_inputs_np = np.concatenate(list_new_vectors, axis=0)
 
+        #if drebinn_data:
+            #rf_model = build_random_forest_classifier(drebinn_x_train, drebinn_y_train)
+            #feature_names = [f'feature_{i}' for i in range(drebinn_x_train.shape[1])]
+            #importances = rf_model.feature_importances_
+            #importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
+            # Sort the DataFrame by importance
+            #importance_df.sort_values(by='Importance', ascending=False, inplace=True)
+            #print(importance_df.index)
+            # Convert the DataFrame index to a NumPy array
+            #index_array = importance_df.index.to_numpy()
+
+            # Save the NumPy array to disk
+            #np.save('index_array.npy', index_array)
 
         sample_model.model.eval()
         model.model.eval()
         
+#        if drebinn_data:
+#            drebinn_x_train = torch.from_numpy(drebinn_x_train).float().to(model.device)
+#            output = model.model(drebinn_x_train)
+#            count_label1 = 0
+#            count_label2 = 0
+#            for val in drebinn_y_train:
+#                if val == 0:
+#                    count_label1 += 1
+#                else:
+#                    count_label2 += 1
+            # Apply softmax to convert logits to probabilities
+#            probabilities = F.softmax(output, dim=1)
+#            results = verify_binary_classifier(probabilities[:,1].cpu().detach().numpy(), drebinn_y_train)
+#            print("Training set:", results)
+
+#            drebinn_x_test = torch.from_numpy(drebinn_x_test).float().to(model.device)
+#            output = model.model(drebinn_x_test)
+#            probabilities = F.softmax(output, dim=1)
+#            results = verify_binary_classifier(probabilities[:,1].cpu().detach().numpy(), drebinn_y_test)
+#            print("Testing set:", results)
+
         if mode == 'direct_deriv':
             X1 = torch.from_numpy(inputs_np).float().to(model.device)
             X2 = torch.from_numpy(perturbed_inputs_np).float().to(model.device) 
@@ -308,6 +354,12 @@ class Detector(AbstractDetector):
         elif method == 'jac':
             test_features =  utils.utils.get_jac(model.model, X )
             ref_features =  utils.utils.get_jac(sample_model.model, X )
+            if drebinn_data: 
+                test_features_least = test_features[:, feature_importance_index[-80:], :]
+                ref_features_least = ref_features[:, feature_importance_index[-80:], :]
+
+                test_features_most = test_features[:, feature_importance_index[0:20], :]
+                ref_features_most = ref_features[:, feature_importance_index[0:20], :]
 
         elif method == 'direct_deriv':
             
@@ -339,7 +391,21 @@ class Detector(AbstractDetector):
         elif agg=='cosavg':
             test_features = test_features.mean(axis=0)
             ref_features = ref_features.mean(axis=0)
-            cossim = utils.utils.cossim(test_features, ref_features)
+            if drebinn_data:
+                
+                test_features_least = test_features_least.mean(axis=0)
+                ref_features_least = ref_features_least.mean(axis=0)
+
+                test_features_most = test_features_most.mean(axis=0)
+                ref_features_most = ref_features_most.mean(axis=0)
+
+                cossim_least = utils.utils.cossim(test_features_least, ref_features_least)
+                cossim_most = utils.utils.cossim(test_features_most, ref_features_most)
+
+                cossim = 0.8* cossim_least + 0.2 * cossim_most
+
+            else:
+                cossim = utils.utils.cossim(test_features, ref_features)
 
         #cossims = [utils.utils.cossim(test_feature[i], ref_features[i])   for i in range(test_feature.shape[0]) ]
         #cossim = np.mean(cossims)
@@ -406,8 +472,8 @@ class Detector(AbstractDetector):
         
         #cossim2 = self.inference_on_example_data(model, examples_dirpath, mode='real')
         
-        cossim3 = self.inference_on_example_data(model, 'direct_deriv','cosavg', examples_dirpath, mode='direct_deriv') # Fifth experiment (Not launched)
-        #cossim3 = self.inference_on_example_data(model, 'jac','cosavg', examples_dirpath, mode='realpert') # First two experiments
+        #cossim3 = self.inference_on_example_data(model, 'direct_deriv','cosavg', examples_dirpath, mode='direct_deriv') # Fifth experiment (Not launched)
+        cossim3 = self.inference_on_example_data(model, 'jac','cosavg', examples_dirpath, True, mode='realpert') # First two experiments
         #cossim3 = self.inference_on_example_data(model, 'shap','cosavg', examples_dirpath, mode='realpert') # Third experiment
         #cossim3 = self.inference_on_example_data(model, 'shap','avgcos', examples_dirpath, mode='realpert') # Fourth experiment
         

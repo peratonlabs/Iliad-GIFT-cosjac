@@ -272,5 +272,38 @@ def run_ep_2x(model1, model2, obs, env):
     return mean_jac1, mean_jac2, mean_sim
     
     
+from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score
+
+def verify_binary_classifier(predictions, labels):
+    """
+    Function to compute precision, recall, F1 score, and ROC-AUC for a binary classifier.
     
+    Args:
+    predictions (list or array): Predicted probabilities or binary predictions.
+    labels (list or array): True binary labels.
+    
+    Returns:
+    dict: A dictionary containing precision, recall, F1 score, and ROC-AUC.
+    """
+    # Convert predictions to binary format (if they are not already binary)
+    binary_predictions = [1 if p >= 0.5 else 0 for p in predictions]
+
+    # Calculate precision, recall, and F1 score
+    precision = precision_score(labels, binary_predictions)
+    recall = recall_score(labels, binary_predictions)
+    f1 = f1_score(labels, binary_predictions)
+
+    # Calculate ROC-AUC
+    # Note: roc_auc_score can handle both binary and continuous predictions
+    roc_auc = roc_auc_score(labels, predictions)
+
+    # Compile and return the results
+    results = {
+        "precision": precision,
+        "recall": recall,
+        "f1_score": f1,
+        "roc_auc": roc_auc
+    }
+
+    return results
     
