@@ -287,7 +287,7 @@ class Detector(AbstractDetector):
                 flips = np.random.binomial(1, p, size=inputs_np.shape)                
                 inputs_np[flips==1] = 1 - inputs_np[flips==1]
                         
-        elif mode == 'direct_deriv':
+        elif mode == 'discrete_deriv':
 
             inputs_np, _ = self.grab_inputs(examples_dirpath)
             
@@ -334,7 +334,7 @@ class Detector(AbstractDetector):
 #            results = verify_binary_classifier(probabilities[:,1].cpu().detach().numpy(), drebinn_y_test)
 #            print("Testing set:", results)
 
-        if mode == 'direct_deriv':
+        if mode == 'discrete_deriv':
             X1 = torch.from_numpy(inputs_np).float().to(model.device)
             X2 = torch.from_numpy(perturbed_inputs_np).float().to(model.device) 
         else:
@@ -361,7 +361,7 @@ class Detector(AbstractDetector):
                 test_features_most = test_features[:, feature_importance_index[0:20], :]
                 ref_features_most = ref_features[:, feature_importance_index[0:20], :]
 
-        elif method == 'direct_deriv':
+        elif method == 'discrete_deriv':
             
             output_ref = model.model(X1)
             output_perturbed_ref = model.model(X2)
@@ -472,7 +472,7 @@ class Detector(AbstractDetector):
         
         #cossim2 = self.inference_on_example_data(model, examples_dirpath, mode='real')
         
-        #cossim3 = self.inference_on_example_data(model, 'direct_deriv','cosavg', examples_dirpath, mode='direct_deriv') # Fifth experiment (Not launched)
+        #cossim3 = self.inference_on_example_data(model, 'discrete_deriv','cosavg', examples_dirpath, mode='discrete_deriv') # Fifth experiment (Not launched)
         cossim3 = self.inference_on_example_data(model, 'jac','cosavg', examples_dirpath, True, mode='realpert') # First two experiments
         #cossim3 = self.inference_on_example_data(model, 'shap','cosavg', examples_dirpath, mode='realpert') # Third experiment
         #cossim3 = self.inference_on_example_data(model, 'shap','avgcos', examples_dirpath, mode='realpert') # Fourth experiment
