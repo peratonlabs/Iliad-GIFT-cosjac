@@ -52,6 +52,14 @@ def cossim(v1,v2, eps=1e-8):
 
     return sim
 
+def avgcosim(v1, v2, eps=1e-8):
+    dim1, _, _= v1.shape
+    avgcosim_val = 0
+    for inx in range(dim1):
+        temp1 = v1[inx,:,:]/(np.linalg.norm(v1[inx,:,:]) + eps)
+        temp2 = v2[inx,:,:]/(np.linalg.norm(v2[inx,:,:]) + eps)
+        avgcosim_val += (temp1*temp2).sum()
+    return avgcosim_val/dim1
 
 
 
@@ -306,4 +314,62 @@ def verify_binary_classifier(predictions, labels):
     }
 
     return results
-    
+
+def get_adversarial_examples(model, X, eps):
+
+    jacobian =  get_jac(model.model, X )
+    signjac = jacobian/np.abs(jacobian)
+    signjac = torch.from_numpy(signjac).float().to(model.device)
+    X_modified_pc0 = X + eps*signjac[:,:,0]
+    X_modified_pc1 = X + eps*signjac[:,:,1]        
+            
+    output = model.model(X)      
+    output_pc0 = model.model(X_modified_pc0)
+    output_pc1 = model.model(X_modified_pc1) 
+
+    index_adversarial_examples_class01_pc0 = []
+    index_adversarial_examples_class10_pc0 = []
+    index_adversarial_examples_class01_pc1 = []
+    index_adversarial_examples_class10_pc1 = []
+    size, _ = output.shape
+
+    for inx in range(size):
+        s1, s2 = output[inx,0], output[inx,1] 
+        if s1 < s2 and output_pc0[inx,0] > output_pc0[inx,1]:  
+            index_adversarial_examples_class10_pc0.append(inx)
+        elif s1 > s2 and output_pc0[inx,0] < output_pc0[inx,1]:
+            index_adversarial_examples_class01_pc0.append(inx)
+        else:
+            pass
+
+        if s1 < s2 and output_pc1[inx,0] > output_pc1[inx,1]:
+            index_adversarial_examples_class10_pc1.append(inx)
+        elif s1 > s2 and output_pc1[inx,0] < output_pc1[inx,1]:
+            index_adversarial_examples_class01_pc1.append(inx)
+        else:
+             pass        
+
+        list_index_adv_examples = [index_adversarial_examples_class10_pc0, index_adversarial_examples_class01_pc0, 
+                      index_adversarial_examples_class10_pc1, index_adversarial_examples_class01_pc1]
+        print("Len of index_adversarial_examples_class10_class01_pc0:", len(index_adversarial_examples_class10_pc0), len(index_adversarial_examples_class01_pc0))
+        print("Len of index_adversarial_examples_class10_class01_pc1:", len(index_adversarial_examples_class10_pc1), len(index_adversarial_examples_class01_pc1))
+        list_modified_datasets =  [X_modified_pc0, X_modified_pc0, X_modified_pc1, X_modified_pc1]
+        list_adversarial_examples = []
+        for inx, list_index in enumerate(list_index_adv_examples):
+            if len(list_index) > 0:
+                list_adversarial_examples.append(list_modified_datasets[inx][list_index,:].cpu().detach().numpy())
+        if list_adversarial_examples:
+            return np.concatenate(list_adversarial_examples) if len(list_adversarial_examples) > 1 else list_adversarial_examples[0]
+        else:
+            return None
+
+def get_no_labels_class(Y):
+    count = sum(1 for label in Y if label == 0)
+    return count, len(Y) - count
+
+def get_prediction_class_samples(output, no_samples):
+    count0, count1 = 0, 0
+    for inx in range(no_samples):
+        p0, p1 = output[inx]
+        count0, count1 = (count0 + 1, count1) if p0 > p1 else (count0, count1 + 1)
+    return count0, count1

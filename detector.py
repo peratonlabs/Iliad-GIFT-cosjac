@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import accuracy_score
-import shap
+import scipy
 
 from tqdm import tqdm
 import torch
@@ -17,6 +17,7 @@ import torch.nn.functional as F
 import utils.utils
 from utils.utils import get_shapley_values, verify_binary_classifier
 from utils.abstract import AbstractDetector
+from utils.drebinnn import DrebinNN
 from utils.flatten import flatten_model, flatten_models
 from utils.healthchecks import check_models_consistency
 from utils.models import create_layer_map, load_model, \
@@ -220,26 +221,31 @@ class Detector(AbstractDetector):
         g_truths_np = np.asarray(g_truths)
         return inputs_np, g_truths_np    
 
-    def inference_on_example_data(self, model, method: str, agg: str, 
-                                  examples_dirpath, drebinn_data: bool, sample_model_dirpath='/models/id-00000001', mode='real'):
-        """Method to demonstrate how to inference on a round's example data.
+    def generate_predictions_for_verification(self, model, dataset: np.ndarray) -> torch:
+        '''
+            Generate softmax predictions
+            Input: model - torch mapping
+                   dataset - model input in numpy format
+            Output:
+                    Softmax predictions in torch format
+        '''
+        train = torch.from_numpy(dataset).float().to(model.device)
+        output_train = model.model(train)
+        return F.softmax(output_train, dim=1)
+        
+    def generate_statistics_datasets(self, model,  examples_dirpath, drebinn_data: bool, sample_model_dirpath='/models/id-00000001'):
 
-        Args:
-            model: the pytorch model
-            examples_dirpath: the directory path for the round example data
-        """
-        
-        
         try: 
             sample_model_path = os.path.join(sample_model_dirpath, 'model.pt')
             sample_model_examples_dirpath = os.path.join(sample_model_dirpath, 'clean-example-data')
             sample_model, _, _ = load_model(sample_model_path)
             if drebinn_data:
-                feature_importance_index = np.load(os.path.join(sample_model_dirpath, 'feature_importance/index_array.npy'))
-            #    drebinn_x_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy'))
-            #    drebinn_y_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy'))
-            #    drebinn_x_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy'))
-            #    drebinn_y_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy'))        
+                feature_importance_index = np.load(os.path.join(sample_model_dirpath, 'feature_importance/index_array.npy')) 
+            #if mode == 'drebinn':
+            drebinn_x_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy'))
+            drebinn_y_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy'))
+            drebinn_x_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy'))
+            drebinn_y_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy'))
         except:
             sample_model_dirpath = '.' + sample_model_dirpath
             print(sample_model_dirpath, "not found. Trying",sample_model_dirpath)
@@ -248,46 +254,317 @@ class Detector(AbstractDetector):
             sample_model, _, _ = load_model(sample_model_path)
             if drebinn_data:
                 feature_importance_index = np.load(os.path.join(sample_model_dirpath, 'feature_importance/index_array.npy'))
-            #    drebinn_x_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy'))
-            #    drebinn_y_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy'))
-            #    drebinn_x_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy'))
-            #    drebinn_y_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy'))
+            #if mode == 'drebinn':
+            drebinn_x_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy'))
+            drebinn_y_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy'))
+            drebinn_x_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy'))
+            drebinn_y_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy'))
+
+        #inputs_np, _ = self.grab_inputs(examples_dirpath)
+
+        # Get scores for Drebinn training and testing datasets
+            
+        indices = np.where(drebinn_y_train == 1)[0]
+        print("indices shape:", indices.shape)
+        print("Shape of the random samples dataset:", drebinn_x_train[indices[np.random.randint(0, indices.shape, 3)],:].shape)
+        np.save("three_uniform_random_drebbin_samples.npy", drebinn_x_train[np.random.randint(0, indices.shape, 3),:])
+
+        no_labels_class0, no_labels_class1  = utils.utils.get_no_labels_class(drebinn_y_train)
+        print("Drebbin training dataset - No of samples in class 0:", no_labels_class0)
+        print("Drebbin training dataset - No of samples in class 1:", no_labels_class1)
+
+        #output_training = model.model(torch.from_numpy(drebinn_x_train).float().to(model.device))
+
+        probabilities = self.generate_predictions_for_verification(model, drebinn_x_train)
+        results_train = verify_binary_classifier(probabilities[:,1].cpu().detach().numpy(), drebinn_y_train)
+        print("Training set:", results_train)
+
+        count0, count1 = utils.utils.get_prediction_class_samples(probabilities, drebinn_x_train.shape[0])
+        print("Predicted classes 0: ", count0, " classes 1: ", count1)
+
+        no_labels_class0, no_labels_class1  = utils.utils.get_no_labels_class(drebinn_y_test)
+        print("Drebbin training dataset - No of samples in class 0:", no_labels_class0)
+        print("Drebbin training dataset - No of samples in class 1:", no_labels_class1)
+
+        probabilities = self.generate_predictions_for_verification(model, drebinn_x_test)
+        results_test = verify_binary_classifier(probabilities[:,1].cpu().detach().numpy(), drebinn_y_test)
+        print("Testing set:", results_test)
+
+        #output_testing = model.model(torch.from_numpy(drebinn_x_test).float().to(model.device))
+        count0, count1 = utils.utils.get_prediction_class_samples(probabilities, drebinn_x_test.shape[0])
+        print("Predicted classes 0: ", count0, " classes 1: ", count1)
+
+
+        inputs_np = np.concatenate([drebinn_x_train, drebinn_x_test])
+        no_samples_original, _ = inputs_np.shape
+        #indices_class1 = np.argwhere(label_np == 1)
+
+
+        X = torch.from_numpy(inputs_np).float().to(model.device)
+        output_original = model.model(X)
+
+        #count0, count1 = 0, 0
+        #for inx in range(no_samples_original):
+        #    p0, p1 = output_original[inx]
+        #    count0, count1 = (count0 + 1, count1) if p0 > p1 else (count0, count1 + 1)
         
+        #print("Predicted classes 0: ", count0, " classes 1: ", count1)
+
+        n_repeats = 10
+        p=0.009
+        print("p is:", p)
+
+        inputs_np = np.repeat(inputs_np, n_repeats, axis=0)
+        no_samples, _= inputs_np.shape        
+        flips = np.random.binomial(1, p, size=inputs_np.shape)
+        inputs_np[flips==1] = 1 - inputs_np[flips==1]
+
+        list_original_dataset_index = []
+        list_binomial_modified_dataset_index = []
+
+        for inx in range(no_samples):                 
+            no_changes = sum(1 for val in flips[inx,:] if val == 1)
+            if no_changes > 0:
+                list_original_dataset_index.append(inx%no_samples_original)
+                list_binomial_modified_dataset_index.append(inx)
+            
+        X = torch.from_numpy(inputs_np).float().to(model.device)
+        output = model.model(X)
+        
+        counter_switch_classes_01, counter_switch_classes_10 = 0, 0
+        for inx, index in enumerate(list_binomial_modified_dataset_index):
+            p0, p1 = output[index]
+            p0_orig, p1_orig = output_original[list_original_dataset_index[inx],:]
+            if p0 > p1 and p0_orig < p1_orig:
+                counter_switch_classes_01 +=1
+            elif p0 < p1 and p0_orig > p1_orig:
+                counter_switch_classes_10 +=1
+        
+        print("counter_switch_classes_01:", counter_switch_classes_01)
+        print("counter_switch_classes_10:", counter_switch_classes_10)
+    
+
+    def generate_adersarial_examples(self, model, method: str, agg: str, 
+                                  examples_dirpath, drebinn_data: bool, sample_model_dirpath='/models/id-00000001', mode='real'):
+        
+        try: 
+            sample_model_path = os.path.join(sample_model_dirpath, 'model.pt')
+            sample_model_examples_dirpath = os.path.join(sample_model_dirpath, 'clean-example-data')
+            sample_model, _, _ = load_model(sample_model_path)
+            if drebinn_data:
+                feature_importance_index = np.load(os.path.join(sample_model_dirpath, 'feature_importance/index_array.npy')) 
+            #if mode == 'drebinn':
+            drebinn_x_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy'))
+            drebinn_y_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy'))
+            drebinn_x_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy'))
+            drebinn_y_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy'))
+        except:
+            sample_model_dirpath = '.' + sample_model_dirpath
+            print(sample_model_dirpath, "not found. Trying",sample_model_dirpath)
+            sample_model_path = os.path.join('.',sample_model_dirpath, 'model.pt')
+            sample_model_examples_dirpath = os.path.join('.',sample_model_dirpath, 'clean-example-data')
+            sample_model, _, _ = load_model(sample_model_path)
+            if drebinn_data:
+                feature_importance_index = np.load(os.path.join(sample_model_dirpath, 'feature_importance/index_array.npy'))
+            #if mode == 'drebinn':
+            drebinn_x_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy'))
+            drebinn_y_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy'))
+            drebinn_x_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy'))
+            drebinn_y_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy'))
+
+            inputs_np, _ = self.grab_inputs(examples_dirpath)
+            #print("my_inputs_np shape:", my_inputs_np.shape)
+            drebbin_np = np.concatenate([drebinn_x_train, drebinn_x_test])
+            #label_np = np.concatenate([drebinn_y_train, drebinn_y_test])
+            #indices_class1 = np.argwhere(label_np == 1)
+
+            inputs_np = np.concatenate([inputs_np, drebbin_np])
+            X = torch.from_numpy(inputs_np).float().to(model.device)
+            jacobian =  utils.utils.get_jac(model.model, X )
+            print("type and shape of jacobian:", type(jacobian), jacobian.shape)
+            eps = 0.01
+            signjac = jacobian/np.abs(jacobian)
+            signjac = torch.from_numpy(signjac).float().to(model.device)
+            X_modified_pc0 = X + eps*signjac[:,:,0]
+            X_modified_pc1 = X + eps*signjac[:,:,1]        
+            
+            output = model.model(X)      
+            output_pc0 = model.model(X_modified_pc0)
+            output_pc1 = model.model(X_modified_pc1) 
+
+            index_adversarial_examples_class01_pc0 = []
+            index_adversarial_examples_class10_pc0 = []
+            index_adversarial_examples_class01_pc1 = []
+            index_adversarial_examples_class10_pc1 = []
+            size, _ = output.shape
+
+            for inx in range(size):
+                s1, s2 = output[inx,0], output[inx,1] 
+                if s1 < s2 and output_pc0[inx,0] > output_pc0[inx,1]:  
+                    index_adversarial_examples_class10_pc0.append(inx)
+                elif s1 > s2 and output_pc0[inx,0] < output_pc0[inx,1]:
+                    index_adversarial_examples_class01_pc0.append(inx)
+                else:
+                    pass
+
+                if s1 < s2 and output_pc1[inx,0] > output_pc1[inx,1]:
+                    index_adversarial_examples_class10_pc1.append(inx)
+                elif s1 > s2 and output_pc1[inx,0] < output_pc1[inx,1]:
+                    index_adversarial_examples_class01_pc1.append(inx)
+                else:
+                    pass        
+
+            print("Len of index_adversarial_examples_class10_class01_pc0:", len(index_adversarial_examples_class10_pc0), len(index_adversarial_examples_class01_pc0))
+            print("Len of index_adversarial_examples_class10_class01_pc1:", len(index_adversarial_examples_class10_pc1), len(index_adversarial_examples_class01_pc1))
+            
+        
+            file_class01_pc0 = '/home/rstefanescu/r17/X_modified_class01_pc0.npy'
+            file_class10_pc0 = '/home/rstefanescu/r17/X_modified_class10_pc0.npy'
+            file_class01_pc1 = '/home/rstefanescu/r17/X_modified_class01_pc1.npy'
+            file_class10_pc1 = '/home/rstefanescu/r17/X_modified_class10_pc1.npy'
+            
+            np.save(file_class01_pc0, X_modified_pc0[index_adversarial_examples_class01_pc0,:].cpu().detach().numpy())
+            np.save(file_class10_pc0, X_modified_pc0[index_adversarial_examples_class10_pc0,:].cpu().detach().numpy())
+            np.save(file_class01_pc1, X_modified_pc1[index_adversarial_examples_class01_pc1,:].cpu().detach().numpy())
+            np.save(file_class10_pc1, X_modified_pc1[index_adversarial_examples_class10_pc1,:].cpu().detach().numpy())
+            
+            labels = np.concatenate([np.array([0,0,0]),drebinn_y_train, drebinn_y_test])
+            count = sum(1 for label in labels if label == 0)
+            print("Number of samples in class 0:", count)
+            print("Number of samples in class 1:", len(labels) - count)
+
+
+    def get_poison_probability(self, model: DrebinNN, method: str, agg: str, 
+                                  examples_dirpath:str, drebinn_data: bool = True, 
+                                  sample_model_dirpath: str = '/models/id-00000001', 
+                                  date_mode: str= 'real'):
+        
+        """ Calculates probability that model is poisoned using different input samples and 
+        a reference clean model given by sample_model_dirpath
+
+        Args:
+            model: a pytorch model 
+            examples_dirpath: the directory path for the round example data used to 
+                             infer if the model is poisoned or not
+            drebbin_data: Drebbin dataset usage flag
+            sample_model_dirpath: path for reference clean model and clean data
+            date_mode: rand, real, realpert, discrete_deriv, drebinn
+        
+        Output: 
+            outcome: probability for model to be poisoned
+        """
+                
+        try: 
+            sample_model_path = os.path.join(sample_model_dirpath, 'model.pt')
+            sample_model_examples_dirpath = os.path.join(sample_model_dirpath, 'clean-example-data')
+            sample_model, _, _ = load_model(sample_model_path)
+            
+            if drebinn_data:
+                feature_importance_index = np.load(os.path.join(sample_model_dirpath, 'feature_importance/index_array.npy')) 
+            #if mode == 'drebinn':
+            drebinn_x_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy'))
+            drebinn_y_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy'))
+            drebinn_x_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy'))
+            drebinn_y_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy'))
+
+            adv_exm_class10_pc0 = np.load(os.path.join(sample_model_dirpath, "adversarial_examples/X_modified_class10_pc0.npy"))
+            adv_exm_class01_pc1 = np.load(os.path.join(sample_model_dirpath, "adversarial_examples/X_modified_class01_pc1.npy"))
+
+            three_uniform_random_drebbin_samples = np.load(os.path.join(sample_model_dirpath, "three_uniform_random_drebbin_samples/dataset_class1.npy"))
+        except:
+            sample_model_dirpath = '.' + sample_model_dirpath
+            print(sample_model_dirpath, "not found. Trying",sample_model_dirpath)
+            sample_model_path = os.path.join('.',sample_model_dirpath, 'model.pt')
+            sample_model_examples_dirpath = os.path.join('.',sample_model_dirpath, 'clean-example-data')
+            sample_model, _, _ = load_model(sample_model_path)
+            if drebinn_data:
+                feature_importance_index = np.load(os.path.join(sample_model_dirpath, 'feature_importance/index_array.npy'))
+            #if mode == 'drebinn':
+            drebinn_x_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy'))
+            drebinn_y_train = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy'))
+            drebinn_x_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy'))
+            drebinn_y_test = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy'))
+
+            adv_exm_class10_pc0 = np.load(os.path.join(sample_model_dirpath, "adversarial_examples/X_modified_class10_pc0.npy"))
+            adv_exm_class01_pc1 = np.load(os.path.join(sample_model_dirpath, "adversarial_examples/X_modified_class01_pc1.npy"))
+
+            three_uniform_random_drebbin_samples = np.load(os.path.join(sample_model_dirpath, "three_uniform_random_drebbin_samples/dataset_class1.npy"))
+
+        print("shape of adv_exm_class10_pc0:", adv_exm_class10_pc0.shape)
+        print("shape of adv_exm_class01_pc1:", adv_exm_class01_pc1.shape)
         print("sample_model_path:", sample_model_path)
 
-        if mode=='rand':
+        sample_model.model.eval()
+        model.model.eval()
+
+        if date_mode=='rand':
             print("sample_model_examples_dirpath:", sample_model_examples_dirpath)
             inputs_np, _ = self.grab_inputs(sample_model_examples_dirpath)
             #inputs_np = np.random.randn(1000,*inputs_np.shape[1:])
             inputs_np = np.random.randint(2,size=[1000, inputs_np.shape[1]])
             #print(inputs_np.shape)
         
-        elif mode=='real' or mode=='realpert':
+        elif date_mode=='real' or date_mode=='realpert':
             
-            print("examples_dirpath:", examples_dirpath)
-            inputs_np, _ = self.grab_inputs(examples_dirpath)
-            print("inputs np shape:", inputs_np.shape)
-            print("sample_model_examples_dirpath:", sample_model_examples_dirpath)
-            my_inputs_np, _ = self.grab_inputs(sample_model_examples_dirpath)
-            print("my_inputs_np shape:", my_inputs_np.shape)
+            # Get access to the testing server data
+            #inputs_np, _ = self.grab_inputs(examples_dirpath)
+            
+            # Get access to the 3 samples dataset
+            #my_inputs_np, _ = self.grab_inputs(sample_model_examples_dirpath)
+            #inputs_np, _ = self.grab_inputs(sample_model_examples_dirpath)
+            
+            #inputs_np = np.concatenate([adv_exm_class10_pc0, adv_exm_class01_pc1])
+            #print("Loading three_uniform_random_drebbin_samples!!!!")
+            #inputs_np = three_uniform_random_drebbin_samples.copy()
 
-
-            inputs_np = np.concatenate([inputs_np, my_inputs_np])
+            #print("my_inputs_np shape:", my_inputs_np.shape)
+            #drebbin_np = np.concatenate([drebinn_x_train, drebinn_x_test])
+            # Use Drebbin dataset
+            label_np = np.concatenate([drebinn_y_train, drebinn_y_test])
+            indices_class1 = np.where(label_np == 1)[0]
+            inputs_np = np.concatenate([drebinn_x_train, drebinn_x_test])[indices_class1,:]
+            #inputs_np = np.concatenate([my_inputs_np, adv_exm_class10_pc0, adv_exm_class01_pc1])
+            print("Shape offf inputs_np:", inputs_np.shape)
+            
+            
+            # Concatenate testing server data with the 3 samples dataset
+            #inputs_np_combined = np.concatenate([inputs_np, my_inputs_np])
+            inputs_np_combined = inputs_np.copy()
+            
             #inputs_np = my_inputs_np
             #g_truths_np = np.concatenate([g_truths_np,my_g_truths_np])
             
-            if mode=='realpert':
-                n_repeats = 100
-                p=0.01
-            
-                inputs_np = np.repeat(inputs_np, n_repeats, axis=0)
+            if date_mode=='realpert':
+                n_repeats = 5
+                p=0.009
+                print("p is:", p)
+                inputs_np = np.repeat(inputs_np_combined, n_repeats, axis=0)
                 #print(inputs_np.shape, inputs_np.dtype)
                 
                 
                 flips = np.random.binomial(1, p, size=inputs_np.shape)                
                 inputs_np[flips==1] = 1 - inputs_np[flips==1]
-                        
-        elif mode == 'discrete_deriv':
+            
+            #inputs_torch = torch.from_numpy(inputs_np_combined).float().to(model.device)
+            # Get adversarial examples from 3 samples and testing datasets
+            #adv_exm_test = utils.utils.get_adversarial_examples(sample_model, inputs_torch, 1)
+
+            #print("adv_exm_test shape and type:", adv_exm_test.shape, type(adv_exm_test))
+            #print("shape 2x real dataset + perturbations:", inputs_np.shape)
+            #print("shape class 1 drebbin dataset:", drebbin_np[indices_class1[:,0],:].shape)
+            #inputs_np = np.concatenate([inputs_np, drebbin_np[indices_class1[:,0],:]])
+            
+            # Concatenate to include adversarial examples from Drebbin 
+            #inputs_np = np.concatenate([inputs_np, adv_exm_class10_pc0, adv_exm_class01_pc1])
+            
+            #print("inputs_np:", inputs_np.shape, type(inputs_np))
+            #print("adv_exm_test:", adv_exm_test.shape, type(adv_exm_test))
+            
+            # Add also adversarial examples from 3 samples and testing datasets
+            #    inputs_np = np.concatenate([inputs_np, adv_exm_test])
+            #print("inputs_np try_adversarial_ex:", inputs_np.shape)
+
+        elif date_mode == 'discrete_deriv':
 
             inputs_np, _ = self.grab_inputs(examples_dirpath)
             
@@ -296,6 +573,12 @@ class Detector(AbstractDetector):
                 list_new_vectors.append(np.abs(np.eye(inputs_np.shape[1]) - inputs_np[i,:]))
             perturbed_inputs_np = np.concatenate(list_new_vectors, axis=0)
 
+
+        elif date_mode == 'drebinn':
+            inputs_np = np.concatenate([drebinn_x_train, drebinn_x_test])
+            #label_np = np.concatenate([drebinn_y_train, drebinn_y_test])
+            #indices_class1 = np.argwhere(label_np == 1)
+            #inputs_np = inputs_np[indices_class1[:,0],:]
         #if drebinn_data:
             #rf_model = build_random_forest_classifier(drebinn_x_train, drebinn_y_train)
             #feature_names = [f'feature_{i}' for i in range(drebinn_x_train.shape[1])]
@@ -310,8 +593,7 @@ class Detector(AbstractDetector):
             # Save the NumPy array to disk
             #np.save('index_array.npy', index_array)
 
-        sample_model.model.eval()
-        model.model.eval()
+        
         
 #        if drebinn_data:
 #            drebinn_x_train = torch.from_numpy(drebinn_x_train).float().to(model.device)
@@ -334,7 +616,7 @@ class Detector(AbstractDetector):
 #            results = verify_binary_classifier(probabilities[:,1].cpu().detach().numpy(), drebinn_y_test)
 #            print("Testing set:", results)
 
-        if mode == 'discrete_deriv':
+        if date_mode == 'discrete_deriv':
             X1 = torch.from_numpy(inputs_np).float().to(model.device)
             X2 = torch.from_numpy(perturbed_inputs_np).float().to(model.device) 
         else:
@@ -352,9 +634,11 @@ class Detector(AbstractDetector):
             ref_features = np.stack(ref_features,  axis=2)
         
         elif method == 'jac':
+            print("jac try_adversarial_ex!!!")
             test_features =  utils.utils.get_jac(model.model, X )
             ref_features =  utils.utils.get_jac(sample_model.model, X )
             if drebinn_data: 
+                print("jac try_adversarial_ex get test/ref features!!!")
                 test_features_least = test_features[:, feature_importance_index[-80:], :]
                 ref_features_least = ref_features[:, feature_importance_index[-80:], :]
 
@@ -383,34 +667,57 @@ class Detector(AbstractDetector):
             test_features = test_features.cpu().detach().numpy()
             ref_features = ref_features.cpu().detach().numpy()
 
-
+        elif method=='mod_out':
+            output_ref = model.model(X)
+            output_perturbed_ref = sample_model.model(X)
+            output_ref = output_ref.cpu().detach().numpy()
+            output_ref = (output_ref - output_ref.min())/(output_ref.max() - output_ref.min())
+            output_perturbed_ref = output_perturbed_ref.cpu().detach().numpy()
+            output_perturbed_ref = (output_perturbed_ref - output_perturbed_ref.min())/(output_perturbed_ref.max() - output_perturbed_ref.min())
+            outcome0 = scipy.spatial.distance.jensenshannon(output_ref[:,0], output_perturbed_ref[:,0])**2
+            outcome1 = scipy.spatial.distance.jensenshannon(output_ref[:,1], output_perturbed_ref[:,1])**2
+            outcome = 0.5*outcome0 + 0.5*outcome1
 
         if agg=='avgcos':
             #cossims = [utils.utils.cossim(test_features[i], ref_features[i])   for i in range(test_features.shape[0]) ]
-            cossim = utils.utils.cossim(test_features, ref_features)
+            
+            #cossim = utils.utils.cossim(test_features, ref_features)
+            
+            if drebinn_data:
+                print("Did right thing!!!")
+                cossim_least = utils.utils.avgcosim(test_features_least, ref_features_least)
+                cossim_most = utils.utils.avgcosim(test_features_most, ref_features_most)
+                outcome = 0.8* cossim_least + 0.2 * cossim_most
+            
+            else:
+                outcome = utils.utils.cossim(test_features, ref_features)
+
         elif agg=='cosavg':
             test_features = test_features.mean(axis=0)
             ref_features = ref_features.mean(axis=0)
             if drebinn_data:
+                print("jac try_adversarial_ex cosavg drebbin_data!!!")
                 
-                test_features_least = test_features_least.mean(axis=0)
-                ref_features_least = ref_features_least.mean(axis=0)
+                test_features_least = test_features_least.sum(axis=0)
+                ref_features_least = ref_features_least.sum(axis=0)
 
-                test_features_most = test_features_most.mean(axis=0)
-                ref_features_most = ref_features_most.mean(axis=0)
+                test_features_most = test_features_most.sum(axis=0)
+                ref_features_most = ref_features_most.sum(axis=0)
 
                 cossim_least = utils.utils.cossim(test_features_least, ref_features_least)
                 cossim_most = utils.utils.cossim(test_features_most, ref_features_most)
 
-                cossim = 0.8* cossim_least + 0.2 * cossim_most
+                outcome = 0.8* cossim_least + 0.2 * cossim_most
 
+            elif agg=='init_avgcos':
+                outcome = utils.utils.cossim(test_features, ref_features)
             else:
-                cossim = utils.utils.cossim(test_features, ref_features)
+                pass
 
         #cossims = [utils.utils.cossim(test_feature[i], ref_features[i])   for i in range(test_feature.shape[0]) ]
         #cossim = np.mean(cossims)
 
-        return cossim
+        return outcome
 
 
     def infer(
@@ -473,30 +780,27 @@ class Detector(AbstractDetector):
         #cossim2 = self.inference_on_example_data(model, examples_dirpath, mode='real')
         
         #cossim3 = self.inference_on_example_data(model, 'discrete_deriv','cosavg', examples_dirpath, mode='discrete_deriv') 
-        cossim3 = self.inference_on_example_data(model, 'jac','cosavg', examples_dirpath, True, mode='realpert') 
+        outcome = self.get_poison_probability(model, 'jac','cosavg', examples_dirpath, True, date_mode='realpert') 
+        #self.generate_adersarial_examples(model, 'mod_out','no', examples_dirpath, True, mode='realpert')
+        #self.generate_statistics_datasets(model,  examples_dirpath, True)
+        #print("Done generating adversarial examples!!!")
+        #outcome = self.inference_on_example_data(model, 'mod_out','no', examples_dirpath, True, mode='realpert') 
         #cossim3 = self.inference_on_example_data(model, 'shap','cosavg', examples_dirpath, mode='realpert') 
         #cossim3 = self.inference_on_example_data(model, 'shap','avgcos', examples_dirpath, mode='realpert') 
         
         #probability = 0.5 - 0.05*cossim1  - 0.05*cossim2
         #probability = 0.5 - 0.1*cossim1  - 0.0*cossim2
         #probability = 0.5 - 0.0*cossim1  - 0.1*cossim2
-        probability = 0.5 - 0.1*cossim3
-        probability = str(probability)
+        #probability = 0.5 - 0.1*cossim3
         
+        probability = 0.5*(1-outcome) 
+        #probability = outcome
+        if probability < 0: 
+            probability = 0
+        elif probability > 1:
+            probability = 1
+        probability = str(probability)
 
-        #X = (
-        #    use_feature_reduction_algorithm(layer_transform[model_class], flat_model)
-        #    * self.model_skew["__all__"]
-        #)
-
-        #try:
-        #    with open(self.model_filepath, "rb") as fp:
-        #        regressor: RandomForestRegressor = pickle.load(fp)
-
-        #    probability = str(regressor.predict(X)[0])
-        #except Exception as e:
-        #    logging.info('Failed to run regressor, there may have an issue during fitting, using random for trojan probability: {}'.format(e))
-        #    probability = str(np.random.rand())
         with open(result_filepath, "w") as fp:
             fp.write(probability)
 
