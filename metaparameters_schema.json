@@ -118,6 +118,10 @@
 		"maximum": 2.0,
 		"suggested_minimum": 0.0,
 		"suggested_maximum": 2.0
+	},
+	"path_adv_examples": {
+		"description": "Path to save adversarial examples",
+		"type": "string"
 	}
   }
 }

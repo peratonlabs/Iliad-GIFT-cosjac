@@ -80,20 +80,39 @@ def get_quants(x, n):
 
 def get_shapley_values(model: DrebinNN, 
                        dataset: list, 
-                       test_dataset: list) -> list:
+                       test_dataset: list) -> np.ndarray:
     '''
     Approximate Shapley values for the deep neural network model using the 
     backround dataset
     Input: model - deep neural network model
            dataset - backround dataset
            test_dataset - shapley values will be computed for the test dataset
-    Output: list of torch tensors with shapley values
+    Output: an np.ndarray with shapley values
     '''
     shap.initjs()
     explainer_model = shap.GradientExplainer(model, dataset)
     shap_values_model = explainer_model.shap_values(test_dataset)
-    return shap_values_model
+    return np.stack(shap_values_model, axis=2)
 
+def get_discrete_derivatives(model: DrebinNN, dataset: torch, dataset_pert: torch) -> np.array:
+    ''' Calculate discrete derivatives (gradients) by substracting the 
+        model outputs using dataset and dataset_pert.
+        Args: model - DrebinNN deep neural network model
+              dataset - the actual input used to calculate discrete derivatives
+              dataset_pert - the input derived from the dataset required for discrete gradients
+        Output: discrete derivatives
+    '''
+            
+    output_ref = model.model(dataset)
+    output_perturbed_ref = model.model(dataset_pert)
+    dim1 = output_ref.shape[0]
+    dim2 = dataset.shape[1]
+            
+    discrete_derivatives = []
+    for i in range(dim1):
+        discrete_derivatives.append(output_ref[i,:] - output_perturbed_ref[i*dim2:(i+1)*dim2])
+    features = torch.stack(discrete_derivatives, dim=0)
+    return features.cpu().detach().numpy()
 
 def get_jac(model: DrebinNN, obs ):
 
@@ -114,6 +133,19 @@ def get_jac(model: DrebinNN, obs ):
     jac = np.stack(jacobian, axis=2)
     #avg_jac = np.mean(np.stack(jacobian, axis=0), axis=(1,2,3,4))
     return jac
+
+def get_scaled_model_output(model: DrebinNN, dataset: torch) -> np.ndarray:
+    ''' Get model output and scaled between 0 and 1
+        Args:
+            model - deep learning mapping
+            dataset - model inputs of size (no_samples, no_features)
+        Output:
+            Scaled model output 
+        
+    '''
+    output_ref = model.model(dataset)
+    output_ref = output_ref.cpu().detach().numpy()
+    return (output_ref - output_ref.min())/(output_ref.max() - output_ref.min())
 
 def get_env_data(model, obs, env):
     done = False
@@ -373,3 +405,101 @@ def get_prediction_class_samples(output, no_samples):
         p0, p1 = output[inx]
         count0, count1 = (count0 + 1, count1) if p0 > p1 else (count0, count1 + 1)
     return count0, count1
+
+def apply_binomial_pert_dataset(dataset: np.array, n: int, p: float, mode: str) -> np.array:
+    '''
+        Expends dataset by n times and applies binnary perturbations
+        Args:
+            dataset - input samples
+            n - dataset will be expended n times
+            p - binomial distribution probability parameter
+        Output:
+            Pertubed and expended dataset  
+    '''
+    if mode == 'drebinn' and n >= 6:
+        msg = "Can not expend drebbin dataset more than 6 times"
+        raise Exception(msg)
+        
+    dataset = np.repeat(dataset, n, axis=0)
+    flips = np.random.binomial(1, p, size=dataset.shape)                
+    dataset[flips == 1] = 1 - dataset[flips == 1]
+    return dataset
+
+def get_discrete_derivative_inputs(dataset: np.ndarray) -> np.array:
+    '''
+    Derive new samples required for the calculation of the discrete gradients. 
+    For each original sample in the initial dataset, a set of samples are derived by 
+    modifying the original sample features one at a time and preserving the boolean
+    type.  
+    Args:
+        dataset - input samples dataset of size (no_samples, no_features)
+    Output:
+        Discrete gradient dataset
+    '''
+    list_new_vectors = []
+    for i in range(dataset.shape[0]):
+        list_new_vectors.append(np.abs(np.eye(dataset.shape[1]) - dataset[i,:]))
+    return np.concatenate(list_new_vectors, axis=0)
+
+def scale_probability(outcome: float, method: str) -> str:
+    '''Transform outcompe into probability
+    Args:
+        outcome - a float number
+        method - cosine similarity returns outcome between (-1,1) 
+                 jensen-shannon returns a probability (0,1)
+    Output:
+        The outcome is scaled between 0 and 1 and converted to string.
+    '''
+    if method != 'jensen-shannon':
+        probability = 0.5*(1-outcome) 
+    probability = np.clip(probability, 0, 1)
+    return str(probability)
+
+
+def fast_gradient_sign_method(dataset: torch, jacobian: torch, device: str, eps: float):
+    '''
+    Get potential adversarial examples for a classification model
+    whose jacobian with respect to the dataset is provided    
+    Args:
+        dataset - input of size (no_samples, no_features)
+        jacobian - jacobian of a model with respect to the input dataset
+        device - it could be CPU or GPU
+        eps - magnitude of the gradient 
+    '''
+    signjac = jacobian/np.abs(jacobian)
+    signjac = torch.from_numpy(signjac).float().to(device)
+    return dataset + eps*signjac[:, :, 0], dataset + eps*signjac[:, :, 1]     
+
+
+def identify_adversarial_examples(
+    model: DrebinNN,
+    dataset: torch,
+    adataset: torch
+):
+    '''
+    Identify adversarial examples for a classification model
+    inside ppdataset using original input dataset
+    Args:
+        model: a pytorch classifier
+        dataset: original set of samples used to get adversarial
+                 examples
+        adataset: potential adversarial dataset
+    Output:
+        two list of indices of adversarial examples
+    '''
+    output = model.model(dataset)
+    output_pc0 = model.model(adataset)
+
+    index_adv_examples_class01 = []
+    index_adv_examples_class10 = []
+    size, _ = output.shape
+
+    for inx in range(size):
+        s1, s2 = output[inx, 0], output[inx, 1]
+        if s1 < s2 and output_pc0[inx, 0] > output_pc0[inx, 1]:
+            index_adv_examples_class01.append(inx)
+        elif s1 > s2 and output_pc0[inx, 0] < output_pc0[inx, 1]:
+            index_adv_examples_class10.append(inx)
+        else:
+            pass
+    return index_adv_examples_class01, index_adv_examples_class10

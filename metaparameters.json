@@ -12,5 +12,6 @@
 	"train_random_forest_regressor_param_min_samples_leaf": 1,
 	"train_random_forest_regressor_param_min_weight_fraction_leaf": 0.0,
 	"train_random_forest_regressor_param_max_features": 1.0,
-	"train_random_forest_regressor_param_min_impurity_decrease": 0.0
+	"train_random_forest_regressor_param_min_impurity_decrease": 0.0,
+	"path_adv_examples": "/home/rstefanescu/r17/"
 }
