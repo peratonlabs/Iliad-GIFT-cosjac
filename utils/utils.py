@@ -9,17 +9,7 @@ from copy import deepcopy
 import shap
 from utils.drebinnn import DrebinNN
 
-# from utils.models import load_model, load_models_dirpath, ImageACModel, ResNetACModel
-# from sklearn.ensemble import RandomForestRegressor
-
-# from utils.abstract import AbstractDetector
-#from utils.model_utils import compute_action_from_trojai_rl_model
-#from utils.models import load_model, load_models_dirpath, ImageACModel, ResNetACModel
-
-
-#from utils.world import RandomLavaWorldEnv
-#from utils.wrappers import ObsEnvWrapper, TensorWrapper
-
+import torch.nn.functional as F
 
 def read_truthfile(truth_fn):
     with open(truth_fn) as f:
@@ -415,6 +405,7 @@ def apply_binomial_pert_dataset(dataset: np.array, n: int, p: float, mode: str) 
             p - binomial distribution probability parameter
         Output:
             Pertubed and expended dataset  
+            flips - features that were perturbed
     '''
     if mode == 'drebinn' and n >= 6:
         msg = "Can not expend drebbin dataset more than 6 times"
@@ -423,7 +414,7 @@ def apply_binomial_pert_dataset(dataset: np.array, n: int, p: float, mode: str) 
     dataset = np.repeat(dataset, n, axis=0)
     flips = np.random.binomial(1, p, size=dataset.shape)                
     dataset[flips == 1] = 1 - dataset[flips == 1]
-    return dataset
+    return dataset, flips
 
 def get_discrete_derivative_inputs(dataset: np.ndarray) -> np.array:
     '''
@@ -452,7 +443,7 @@ def scale_probability(outcome: float, method: str) -> str:
     '''
     if method != 'jensen-shannon':
         probability = 0.5*(1-outcome) 
-    probability = np.clip(probability, 0, 1)
+    probability = np.clip(probability, 1e-5, 0.99999)
     return str(probability)
 
 
@@ -472,23 +463,19 @@ def fast_gradient_sign_method(dataset: torch, jacobian: torch, device: str, eps:
 
 
 def identify_adversarial_examples(
-    model: DrebinNN,
-    dataset: torch,
-    adataset: torch
+    output: torch,
+    output_padv: torch
 ):
     '''
     Identify adversarial examples for a classification model
-    inside ppdataset using original input dataset
+    where output and output_padv are the model outcomes from the
+    original vs possible adversarial datasets
     Args:
-        model: a pytorch classifier
-        dataset: original set of samples used to get adversarial
-                 examples
-        adataset: potential adversarial dataset
+        output:  model output using original set of samples
+        output_padv: potential adversarial dataset
     Output:
         two list of indices of adversarial examples
     '''
-    output = model.model(dataset)
-    output_pc0 = model.model(adataset)
 
     index_adv_examples_class01 = []
     index_adv_examples_class10 = []
@@ -496,10 +483,131 @@ def identify_adversarial_examples(
 
     for inx in range(size):
         s1, s2 = output[inx, 0], output[inx, 1]
-        if s1 < s2 and output_pc0[inx, 0] > output_pc0[inx, 1]:
+        if s1 < s2 and output_padv[inx, 0] > output_padv[inx, 1]:
             index_adv_examples_class01.append(inx)
-        elif s1 > s2 and output_pc0[inx, 0] < output_pc0[inx, 1]:
+        elif s1 > s2 and output_padv[inx, 0] < output_padv[inx, 1]:
             index_adv_examples_class10.append(inx)
         else:
             pass
     return index_adv_examples_class01, index_adv_examples_class10
+
+
+def save_adversarial_examples_binarry_classifier(
+    path_adv_examples: str,
+    list_samples_adv_examples: list
+):
+    '''
+    For a binary classifier, we calculated the adversarial examples
+    switching target classes from 0 to 1 and 1 to 0 for both model 
+    outputs provided as list_samples_adv_examples. These 4 
+    torch arrays in the list are then saved to disk as separate files.
+    Args:
+        path_adv_examples - folder path disk destination
+        list_samples_adv_examples - list of 4 torch arrays with 
+                        adversarial examples 
+    '''
+    list_file_names = [
+        'X_modified_class01_pc0.npy',
+        'X_modified_class10_pc0.npy',
+        'X_modified_class01_pc1.npy',
+        'X_modified_class10_pc1.npy'
+    ]
+
+    for inx, file_name in enumerate(list_file_names):
+        np.save(
+            path_adv_examples + file_name,
+            list_samples_adv_examples[inx].cpu().detach().numpy()
+        )
+
+
+def get_Drebbin_dataset(
+    reference_model_dirpath: str,
+    path_drebbin_x_train: str,
+    path_drebbin_x_test: str,
+    path_drebbin_y_train: str,
+    path_drebbin_y_test: str,
+) -> np.ndarray:
+    '''Load Drebbin dataset features and store it 
+    in a numpy array structure
+    Args:
+        reference_model_dirpath: main path
+        path_drebbin_x_train: path to train dataset
+        path_drebbin_x_test: path to test dataset
+        path_drebbin_y_train: path to train labels dataset
+        path_drebbin_y_test: path to test labels dataset
+    Output:
+        inputs_np - concatenated train and test features data
+        label_np - concatenated train and test labels data
+    '''
+    drebinn_x_train = np.load(os.path.join(
+        reference_model_dirpath,
+        path_drebbin_x_train
+        )
+    )
+    drebinn_x_test = np.load(os.path.join(
+        reference_model_dirpath,
+        path_drebbin_x_test
+        )
+    )
+
+    # Load test model samples
+    inputs_np = np.concatenate([
+        drebinn_x_train,
+        drebinn_x_test
+        ]
+    )
+
+    drebinn_y_train = np.load(os.path.join(
+        reference_model_dirpath,
+        path_drebbin_y_train
+        )
+    )
+    drebinn_y_test = np.load(os.path.join(
+        reference_model_dirpath,
+        path_drebbin_y_test
+        )
+    )
+
+    # Load test model samples
+    label_np = np.concatenate([
+        drebinn_y_train,
+        drebinn_y_test
+        ]
+    )
+    return inputs_np, label_np
+
+
+def get_flipped_samples_indices(
+    flips: np.array,
+    no_samples: int
+):
+    '''
+    Gets the indices corresponding to 
+    flips in a dataset 
+    Args:
+        flips: features perturbed based on 
+               binomial distribution
+        no_samples: size of a dataset 
+    '''
+    list_index = []
+    for inx in range(no_samples):                 
+        no_changes = sum(1 for val in flips[inx, :] if val == 1)
+        if no_changes > 0:
+            list_index.append(inx)
+    return list_index
+
+
+def generate_predictions_for_verification(
+    model: DrebinNN,
+    dataset: np.ndarray
+) -> torch:
+    '''
+        Generate softmax predictions
+        Input: model - torch mapping
+               dataset - model input in numpy format
+        Output:
+                Softmax predictions in torch format
+    '''
+    train = torch.from_numpy(dataset).float().to(model.device)
+    output_train = model.model(train)
+    return F.softmax(output_train, dim=1)
