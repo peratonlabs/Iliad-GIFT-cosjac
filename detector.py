@@ -744,14 +744,15 @@ class Detector(AbstractDetector):
         model_repr = pad_model(model_repr, model_class, models_padding_dict)
         flat_model = flatten_model(model_repr, model_layer_map[model_class])
 
-        if self.generate_statistics:
-            inputs_np, labels_np = get_Drebbin_dataset(
+        inputs_np, labels_np = get_Drebbin_dataset(
                 '/models/id-00000001',
                 self.path_drebbin_x_train,
                 self.path_drebbin_x_test,
                 self.path_drebbin_y_train,
                 self.path_drebbin_y_test,
-            )
+        )
+
+        if self.generate_statistics:
 
             self.generate_statistics_datasets(model, inputs_np, labels_np)
 
