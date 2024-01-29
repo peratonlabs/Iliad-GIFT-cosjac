@@ -12,5 +12,17 @@
 	"train_random_forest_regressor_param_min_samples_leaf": 1,
 	"train_random_forest_regressor_param_min_weight_fraction_leaf": 0.0,
 	"train_random_forest_regressor_param_max_features": 1.0,
-	"train_random_forest_regressor_param_min_impurity_decrease": 0.0
+	"train_random_forest_regressor_param_min_impurity_decrease": 0.0,
+	"stat_output_file": "statistics.json",
+	"path_adv_examples": "/home/rstefanescu/r17/",
+	"path_drebbin_x_train": "cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy",
+	"path_drebbin_x_test": "cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy",
+	"path_drebbin_y_train": "cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy",
+	"path_drebbin_y_test": "cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy",
+	"calc_drebbin_adv": false,
+	"save_adv_examples": true,
+	"grad_magnitude": 0.01,
+	"aug_dataset_factor": 5,
+	"aug_bin_prob": 0.009,
+	"generate_statistics": false
 }

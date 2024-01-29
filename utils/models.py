@@ -1,11 +1,12 @@
-import re
 from collections import OrderedDict
+import json
+import numpy as np
+import os
 from os.path import join
-
+import re
+from sklearn.ensemble import RandomForestClassifier
 import torch
 from tqdm import tqdm
-import json
-import os
 from utils.drebinnn import DrebinNN
 
 
@@ -101,3 +102,18 @@ def load_models_dirpath(models_dirpath):
         model_ground_truth_dict[model_class].append(model_ground_truth)
 
     return model_repr_dict, model_ground_truth_dict
+
+
+def build_random_forest_classifier(x_train: np.array, y_train: np.array) -> RandomForestClassifier:
+    '''Build a simple random forest model using scikit-library
+       Input:
+            x_train: np.array with the features
+            y_train: labels
+        Output:
+            rf_model object
+    '''
+    rf_model = RandomForestClassifier(n_estimators=100, random_state=0)
+    rf_model.fit(x_train, y_train)
+    return rf_model
+
+#inputs_np = np.load(os.path.join(sample_model_dirpath, 'cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy'))

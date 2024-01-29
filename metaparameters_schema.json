@@ -118,6 +118,66 @@
 		"maximum": 2.0,
 		"suggested_minimum": 0.0,
 		"suggested_maximum": 2.0
+	},
+	"stat_output_file": {
+		"description": "Output file statistics",
+		"type": "string"
+	},
+	"path_adv_examples": {
+		"description": "Path to save adversarial examples from Drebbin dataset",
+		"type": "string"
+	},
+	"path_drebbin_x_train": {
+		"description": "Path to drebbin x train dataset",
+		"type": "string"
+	},
+	"path_drebbin_x_test": {
+		"description": "Path to drebbin x test dataset",
+		"type": "string"
+	},
+	"path_drebbin_y_train":{
+		"description": "Path to drebbin y train dataset",
+		"type": "string"
+	},
+	"path_drebbin_y_test":{
+		"description": "Path to drebbin y test dataset",
+		"type": "string"
+	},
+	"calc_drebbin_adv": {
+		"description": "Flag for calculating drebbin adversarial examples",
+		"type": "boolean"
+	},
+	"save_adv_examples": {
+		"description": "Flag for calculating drebbin adversarial examples",
+		"type": "boolean"
+	},
+	"grad_magnitude": {
+		"description": "Gradient magnitude in fast gradient sign method",
+		"type": "number",
+		"minimum": 0.0,
+		"maximum": 100.0,
+		"suggested_minimum": 0.0,
+		"suggested_maximum": 100.0
+	},
+	"aug_dataset_factor": {
+		"description": "Dataset augmentation factor where binomial pert are applied",
+		"type": "number",
+		"minimum": 0,
+		"maximum": 100,
+		"suggested_minimum": 0,
+		"suggested_maximum": 100
+	},
+	"aug_bin_prob": {
+		"description": "Binomial distribution parameter p for adding perturbations",
+		"type": "number",
+		"minimum": 0,
+		"maximum": 1,
+		"suggested_minimum": 0,
+		"suggested_maximum": 1
+	},
+	"generate_statistics": {
+		"description": "Flag for generating statistics",
+		"type": "boolean"
 	}
   }
 }
