@@ -494,7 +494,8 @@ def identify_adversarial_examples(
 
 def save_adversarial_examples_binarry_classifier(
     path_adv_examples: str,
-    list_samples_adv_examples: list
+    list_samples_adv_examples: list,
+    reference_model_dirpath: str = '/models/id-00000001'
 ):
     '''
     For a binary classifier, we calculated the adversarial examples
@@ -514,8 +515,13 @@ def save_adversarial_examples_binarry_classifier(
     ]
 
     for inx, file_name in enumerate(list_file_names):
+        file_path = os.path.join(
+            reference_model_dirpath,
+            path_adv_examples,
+            file_name
+        )
         np.save(
-            path_adv_examples + file_name,
+            file_path,
             list_samples_adv_examples[inx].cpu().detach().numpy()
         )
 

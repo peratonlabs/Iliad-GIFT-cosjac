@@ -119,39 +119,47 @@
 		"suggested_minimum": 0.0,
 		"suggested_maximum": 2.0
 	},
-	"stat_output_file": {
-		"description": "Output file statistics",
+	"infer_stat_output_file": {
+		"description": "Path to output statistics file",
+		"enum": ["statistics.json"],
 		"type": "string"
 	},
-	"path_adv_examples": {
+	"infer_path_adv_examples": {
 		"description": "Path to save adversarial examples from Drebbin dataset",
+		"enum": ["save_adversarial_examples/statistics.json"],
 		"type": "string"
 	},
-	"path_drebbin_x_train": {
+	"infer_path_drebbin_x_train": {
 		"description": "Path to drebbin x train dataset",
+		"enum": ["cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy"],
 		"type": "string"
 	},
-	"path_drebbin_x_test": {
+	"infer_path_drebbin_x_test": {
 		"description": "Path to drebbin x test dataset",
+		"enum": ["cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy"],
 		"type": "string"
 	},
-	"path_drebbin_y_train":{
+	"infer_path_drebbin_y_train":{
 		"description": "Path to drebbin y train dataset",
+		"enum": ["cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy"],
 		"type": "string"
 	},
-	"path_drebbin_y_test":{
+	"infer_path_drebbin_y_test":{
 		"description": "Path to drebbin y test dataset",
+		"enum": ["cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy"],
 		"type": "string"
 	},
-	"calc_drebbin_adv": {
+	"infer_calc_drebbin_adv": {
 		"description": "Flag for calculating drebbin adversarial examples",
+		"enum": [true, false],
 		"type": "boolean"
 	},
-	"save_adv_examples": {
+	"infer_save_adv_examples": {
 		"description": "Flag for calculating drebbin adversarial examples",
+		"enum": [true, false],
 		"type": "boolean"
 	},
-	"grad_magnitude": {
+	"infer_grad_magnitude": {
 		"description": "Gradient magnitude in fast gradient sign method",
 		"type": "number",
 		"minimum": 0.0,
@@ -159,7 +167,7 @@
 		"suggested_minimum": 0.0,
 		"suggested_maximum": 100.0
 	},
-	"aug_dataset_factor": {
+	"infer_aug_dataset_factor": {
 		"description": "Dataset augmentation factor where binomial pert are applied",
 		"type": "number",
 		"minimum": 0,
@@ -167,7 +175,7 @@
 		"suggested_minimum": 0,
 		"suggested_maximum": 100
 	},
-	"aug_bin_prob": {
+	"infer_aug_bin_prob": {
 		"description": "Binomial distribution parameter p for adding perturbations",
 		"type": "number",
 		"minimum": 0,
@@ -175,8 +183,14 @@
 		"suggested_minimum": 0,
 		"suggested_maximum": 1
 	},
-	"generate_statistics": {
+	"infer_generate_statistics": {
 		"description": "Flag for generating statistics",
+		"enum": [true, false],
+		"type": "boolean"
+	},
+	"infer_load_drebbin": {
+		"description": "Flag for loading Drebbin dataset",
+		"enum": [true, false],
 		"type": "boolean"
 	}
   }

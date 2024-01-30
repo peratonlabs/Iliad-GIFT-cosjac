@@ -108,18 +108,19 @@ class Detector(AbstractDetector):
                 "train_random_forest_regressor_param_min_impurity_decrease"
             ],
         }
-        self.path_adv_examples = metaparameters['path_adv_examples']
-        self.path_drebbin_x_train = metaparameters['path_drebbin_x_train']
-        self.path_drebbin_x_test = metaparameters['path_drebbin_x_test']
-        self.path_drebbin_y_train = metaparameters['path_drebbin_y_train']
-        self.path_drebbin_y_test = metaparameters['path_drebbin_y_test']
-        self.calc_drebbin_adv = metaparameters['calc_drebbin_adv']
-        self.grad_magnitude = metaparameters['grad_magnitude']
-        self.save_adv_examples = metaparameters['save_adv_examples']
-        self.stat_output_file = metaparameters['stat_output_file']
-        self.aug_dataset_factor = metaparameters["aug_dataset_factor"]
-        self.aug_bin_prob = metaparameters["aug_bin_prob"]
-        self.generate_statistics = metaparameters["generate_statistics"]
+        self.infer_path_adv_examples = metaparameters['infer_path_adv_examples']
+        self.infer_path_drebbin_x_train = metaparameters['infer_path_drebbin_x_train']
+        self.infer_path_drebbin_x_test = metaparameters['infer_path_drebbin_x_test']
+        self.infer_path_drebbin_y_train = metaparameters['infer_path_drebbin_y_train']
+        self.infer_path_drebbin_y_test = metaparameters['infer_path_drebbin_y_test']
+        self.infer_calc_drebbin_adv = metaparameters['infer_calc_drebbin_adv']
+        self.infer_grad_magnitude = metaparameters['infer_grad_magnitude']
+        self.infer_save_adv_examples = metaparameters['infer_save_adv_examples']
+        self.infer_stat_output_file = metaparameters['infer_stat_output_file']
+        self.infer_aug_dataset_factor = metaparameters["infer_aug_dataset_factor"]
+        self.infer_aug_bin_prob = metaparameters["infer_aug_bin_prob"]
+        self.infer_generate_statistics = metaparameters["infer_generate_statistics"]
+        self.infer_load_drebbin = metaparameters["infer_load_drebbin"]
 
     def write_metaparameters(self):
         metaparameters = {
@@ -295,7 +296,8 @@ class Detector(AbstractDetector):
         self,
         model: DrebinNN,
         x_dataset: np.array,
-        y_dataset: np.array
+        y_dataset: np.array,
+        reference_model_dirpath: str = '/models/id-00000001',
     ):
         '''
             Calculate main verification scores including
@@ -338,8 +340,8 @@ class Detector(AbstractDetector):
         # Generate binomial perturbations
         x_dataset_aug, flips = apply_binomial_pert_dataset(
             x_dataset,
-            self.aug_dataset_factor,
-            self.aug_bin_prob,
+            self.infer_aug_dataset_factor,
+            self.infer_aug_bin_prob,
             'drebinn')
         #######################################################################
         # Find samples corresponding to perturbed samples
@@ -373,8 +375,10 @@ class Detector(AbstractDetector):
         results['no_adv_examples_10'] = len(inx_adv10)
 
         # Specify the file name
-        file_path = self.path_adv_examples + self.stat_output_file
-
+        file_path = os.path.join(
+            reference_model_dirpath,
+            self.infer_path_adv_examples
+        )
         # Writing JSON data
         with open(file_path, 'w') as json_file:
             json.dump(results, json_file, indent=4)
@@ -404,7 +408,7 @@ class Detector(AbstractDetector):
             X,
             jacobian,
             model.device,
-            self.grad_magnitude
+            self.infer_grad_magnitude
         )
 
         # Identify adversarial examples for the binary classifier
@@ -484,7 +488,7 @@ class Detector(AbstractDetector):
                 )
             )
 
-        if date_mode == 'drebinn_adversarial':
+        elif date_mode == 'drebinn_adversarial':
             adv_exm_class10_pc0 = np.load(os.path.join(
                 reference_model_dirpath,
                 "adversarial_examples/X_modified_class10_pc0.npy"
@@ -495,7 +499,17 @@ class Detector(AbstractDetector):
                 "adversarial_examples/X_modified_class01_pc1.npy"
                 )
             )
-
+            
+        elif date_mode == 'poison':
+            poison_examples = np.load(os.path.join(
+                reference_model_dirpath,
+                "poisoned_examples/poisoned_features.npy"
+                )
+            )
+        else:
+            pass
+        
+        print("Feature_importance:", feature_importance)
         if feature_importance:
             feature_importance_index = np.load(os.path.join(
                 reference_model_dirpath,
@@ -524,7 +538,7 @@ class Detector(AbstractDetector):
                 ]
             )
 
-        elif date_mode == 'drebinn_reference_adversarial':
+        elif date_mode == 'drebinn_adversarial':
 
             inputs_np = np.concatenate([
                 inputs_np,
@@ -532,18 +546,20 @@ class Detector(AbstractDetector):
                 adv_exm_class01_pc1
                 ]
             )
-
         else:
             pass
-
+        
+        print("poison inputs_np shape:", inputs_np.shape)
         ##################################################################
         # For all data options we apply random perturbations.
         inputs_np, _ = apply_binomial_pert_dataset(
-            inputs_np,
-            self.aug_dataset_factor,
-            self.aug_bin_prob,
-            date_mode
+           inputs_np,
+           self.infer_aug_dataset_factor,
+           self.infer_aug_bin_prob,
+           date_mode
         )
+        if date_mode == 'poison':
+            inputs_np = np.concatenate([inputs_np, poison_examples])
         # Load input to appropriate model.device
         X = torch.from_numpy(inputs_np).float().to(model.device)
 
@@ -563,9 +579,9 @@ class Detector(AbstractDetector):
             # This method is slow and requires a lot of memory.
             # Potential memory clogs may apear if large dataset X is provided.
 
-            if date_mode != 'drebinn_reference_adversarial':
+            if date_mode != 'drebinn_adversarial':
                 msg = (
-                    "Shap is compatible with drebinn_reference_adversarial "
+                    "Shap is compatible with drebinn_adversarial "
                     "date_mode option!"
                 )
                 raise Exception(msg)
@@ -744,28 +760,38 @@ class Detector(AbstractDetector):
         model_repr = pad_model(model_repr, model_class, models_padding_dict)
         flat_model = flatten_model(model_repr, model_layer_map[model_class])
 
-        inputs_np, labels_np = get_Drebbin_dataset(
+        if self.infer_load_drebbin:
+            inputs_np, labels_np = get_Drebbin_dataset(
                 '/models/id-00000001',
-                self.path_drebbin_x_train,
-                self.path_drebbin_x_test,
-                self.path_drebbin_y_train,
-                self.path_drebbin_y_test,
-        )
+                self.infer_path_drebbin_x_train,
+                self.infer_path_drebbin_x_test,
+                self.infer_path_drebbin_y_train,
+                self.infer_path_drebbin_y_test,
+            )
 
-        if self.generate_statistics:
-
+        if self.infer_generate_statistics: 
+            if not self.infer_load_drebbin:
+                msg = (
+                    "Set load_drebbin to True to generate statistics!"
+                )
+                raise Exception(msg)
             self.generate_statistics_datasets(model, inputs_np, labels_np)
 
-        if self.calc_drebbin_adv:
+        if self.infer_calc_drebbin_adv:
+            if not self.infer_load_drebbin:
+                msg = (
+                    "Set load_drebbin to calculate adv samples for Drebbin!"
+                )
+                raise Exception(msg)
             print("Launching generate_adersarial_examples updated!")
 
             list_adversarial_ex = self.generate_adersarial_examples(
                 model,
                 inputs_np
             )
-            if self.save_adv_examples:
+            if self.infer_save_adv_examples:
                 save_adversarial_examples_binarry_classifier(
-                    self.path_adv_examples,
+                    self.infer_path_adv_examples,
                     list_adversarial_ex)
 
         probability = self.get_poison_probability(
@@ -774,7 +800,7 @@ class Detector(AbstractDetector):
             'cosavg',
             examples_dirpath,
             True,
-            date_mode='drebinn'
+            date_mode='poison'
         )
 
         with open(result_filepath, "w") as fp:
