@@ -58,6 +58,9 @@ singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath 
 
    Complete description available at - https://www.youtube.com/watch?v=n7yB1x2vhKw
 
+# Run probability scores for all test models locally
+
+python run_all_models.py --test_models_path /home/rstefanescu/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/models/ --metadata_path /home/rstefanescu/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/METADATA.csv --dictionary_path /home/rstefanescu/r17/scratch/result.json --pandas_path /home/rstefanescu/r17/scratch/output.csv
 
 # Experimental Results
 ## Jacobian Similarity

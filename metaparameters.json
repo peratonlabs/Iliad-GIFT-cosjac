@@ -22,7 +22,7 @@
 	"infer_calc_drebbin_adv": false,
 	"infer_save_adv_examples": true,
 	"infer_grad_magnitude": 0.01,
-	"infer_aug_dataset_factor": 5,
+	"infer_aug_dataset_factor": 100,
 	"infer_aug_bin_prob": 0.009,
 	"infer_generate_statistics": false,
 	"infer_load_drebbin": false

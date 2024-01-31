@@ -410,7 +410,7 @@ def apply_binomial_pert_dataset(dataset: np.array, n: int, p: float, mode: str) 
     if mode == 'drebinn' and n >= 6:
         msg = "Can not expend drebbin dataset more than 6 times"
         raise Exception(msg)
-        
+
     dataset = np.repeat(dataset, n, axis=0)
     flips = np.random.binomial(1, p, size=dataset.shape)                
     dataset[flips == 1] = 1 - dataset[flips == 1]
@@ -442,8 +442,8 @@ def scale_probability(outcome: float, method: str) -> str:
         The outcome is scaled between 0 and 1 and converted to string.
     '''
     if method != 'jensen-shannon':
-        probability = 0.5*(1-outcome) 
-    probability = np.clip(probability, 1e-5, 0.99999)
+        outcome = 0.5*(1-outcome) 
+    probability = np.clip(outcome, 1e-5, 0.99999)
     return str(probability)
 
 
@@ -617,3 +617,42 @@ def generate_predictions_for_verification(
     train = torch.from_numpy(dataset).float().to(model.device)
     output_train = model.model(train)
     return F.softmax(output_train, dim=1)
+
+
+def get_model_name(model_filepath: str) -> str:
+    '''
+    Extract the lowest subfolder in the model_filepath.
+    Take advantage of the naming convention to get
+    the model name.
+    Args:
+        model_filepath - filepath where model is saved
+    Output:
+        The lowest subfolder in the model filepath
+    '''
+    path_components = model_filepath.split(os.sep)
+
+    # Extract the lowest subfolder
+    # It's the second to last component in the path (last is the file name)
+    return path_components[-2] if len(path_components) > 1 else None
+
+
+def save_dictionary_to_file(my_dict: dict, filepath: str):
+    '''
+    Saves a dictionary to file. If the file exists
+    my_dict is augmented to the existing dictionary
+    in file.
+    Args:
+        my_dict - dictionary 
+        filepath - path to save dictionary
+    '''
+    # Check if the file exists
+    if os.path.exists(filepath):
+        # Read the existing data
+        with open(filepath, 'r') as file:
+            existing_data = json.load(file)
+            # Update your dictionary with the existing data
+        my_dict.update(existing_data)
+
+    # Write the (updated) dictionary back to the file
+    with open(filepath, 'w') as file:
+        json.dump(my_dict, file, indent=4)
