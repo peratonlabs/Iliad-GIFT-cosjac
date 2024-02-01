@@ -25,5 +25,6 @@
 	"infer_aug_dataset_factor": 100,
 	"infer_aug_bin_prob": 0.009,
 	"infer_generate_statistics": false,
-	"infer_load_drebbin": false
+	"infer_load_drebbin": false,
+	"infer_platform": "local"
 }

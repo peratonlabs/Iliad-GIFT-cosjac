@@ -3,19 +3,17 @@ This repo is adapted from [NIST's Round 17 example code](https://github.com/usni
 
 # Setup the Conda environment
 
-1. `conda create --name r17 python=3.8 -y`
-2. `conda activate r17`
-3. Install required packages into this conda environment
-    - `conda install pytorch=1.12.1=py3.8_cuda10.2_cudnn7.6.5_0 -c pytorch`
-    - `pip install tqdm jsonschema jsonargparse scikit-learn`
-
+1. conda create -n r17_update python=3.7.13
+2. conda activate r17_update
+3. conda install pytorch=1.12.1 torchvision torchaudio cudatoolkit=11.3 -c pytorch
+4. pip install --upgrade pip
+5.  install tqdm jsonschema jsonargparse scikit-learn shap matplotlib
 
 # Run inference outside of Singularity
 
 ```
 python entrypoint.py infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
 ```
-
 
 # Build a new container 
 
@@ -28,6 +26,7 @@ sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac.simg example_troja
 ```
 singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
 ```
+ctivate base
 
 # Remote terminal to access google drive via API - Setup rclone to interface with google drive from remote terminal 
 

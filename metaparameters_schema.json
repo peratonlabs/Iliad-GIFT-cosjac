@@ -192,6 +192,11 @@
 		"description": "Flag for loading Drebbin dataset",
 		"enum": [true, false],
 		"type": "boolean"
+	},
+	"infer_platform":{
+		"description": "Platform where the code will be run",
+		"enum": ["local", "test_server"],
+		"type": "string"
 	}
   }
 }
