@@ -26,7 +26,6 @@ sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac.simg example_troja
 ```
 singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
 ```
-ctivate base
 
 # Remote terminal to access google drive via API - Setup rclone to interface with google drive from remote terminal 
 
