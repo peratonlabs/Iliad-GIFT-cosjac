@@ -626,7 +626,31 @@ class Detector(AbstractDetector):
             perturbed_inputs_np = torch.from_numpy(perturbed_inputs_np).float().to(model.device)
             # Discrete derivatives (gradients)
             test_features = get_discrete_derivatives(model, X, perturbed_inputs_np)
-            ref_features = get_discrete_derivatives(ref_features, X, perturbed_inputs_np)
+            ref_features = get_discrete_derivatives(reference_model, X, perturbed_inputs_np)
+            
+            if feature_importance:
+
+                test_features_least = test_features[
+                    :,
+                    feature_importance_index[-80:],
+                    :
+                ]
+                ref_features_least = ref_features[
+                    :,
+                    feature_importance_index[-80:],
+                    :
+                ]
+
+                test_features_most = test_features[
+                    :,
+                    feature_importance_index[0:20],
+                    :
+                ]
+                ref_features_most = ref_features[
+                    :,
+                    feature_importance_index[0:20],
+                    :
+                ]
 
         ##################################################################
         elif method == 'model_out':
