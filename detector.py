@@ -696,7 +696,6 @@ class Detector(AbstractDetector):
                     True,
                     self.no_features_most
                 )
-
         ##################################################################
         elif method == 'model_out':
             test_features = get_scaled_model_output(model, X)

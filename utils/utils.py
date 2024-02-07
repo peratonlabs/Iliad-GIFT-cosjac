@@ -430,9 +430,10 @@ def get_discrete_derivative_inputs(dataset: np.ndarray) -> np.array:
     '''
     list_new_vectors = []
     for i in range(dataset.shape[0]):
-        list_new_vectors.append(np.abs(np.eye(dataset.shape[1]) - dataset[i,:]))
+        list_new_vectors.append(np.eye(dataset.shape[1]) - dataset[i,:])
     return np.concatenate(list_new_vectors, axis=0)
 
+    
 def scale_probability(outcome: float, method: str) -> str:
     '''Transform outcompe into probability
     Args:
