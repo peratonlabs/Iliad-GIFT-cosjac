@@ -32,22 +32,23 @@ def read_number_from_csv(file_path):
     except ValueError:
         print(f"Unable to convert the value to a number in file: {file_path}")
 
-def cossim(v1,v2, eps=1e-8):
-    #print(v1, v2)
+
+def cossim(v1, v2, eps=1e-8):
 
     v1 = v1/(np.linalg.norm(v1) + eps)
     v2 = v2/(np.linalg.norm(v2) + eps)
-    
+
     sim = (v1*v2).sum()
 
     return sim
 
+
 def avgcosim(v1, v2, eps=1e-8):
-    dim1, _, _= v1.shape
+    dim1, _, _ = v1.shape
     avgcosim_val = 0
     for inx in range(dim1):
-        temp1 = v1[inx,:,:]/(np.linalg.norm(v1[inx,:,:]) + eps)
-        temp2 = v2[inx,:,:]/(np.linalg.norm(v2[inx,:,:]) + eps)
+        temp1 = v1[inx, :, :]/(np.linalg.norm(v1[inx, :, :]) + eps)
+        temp2 = v2[inx, :, :]/(np.linalg.norm(v2[inx, :, :]) + eps)
         avgcosim_val += (temp1*temp2).sum()
     return avgcosim_val/dim1
 
@@ -443,7 +444,7 @@ def scale_probability(outcome: float, method: str) -> str:
         The outcome is scaled between 0 and 1 and converted to string.
     '''
     if method != 'jensen-shannon':
-        outcome = 0.5*(1-outcome) 
+        outcome = 0.5*(1-outcome)
     probability = np.clip(outcome, 1e-5, 0.99999)
     return str(probability)
 
@@ -657,3 +658,37 @@ def save_dictionary_to_file(my_dict: dict, filepath: str):
     # Write the (updated) dictionary back to the file
     with open(filepath, 'w') as file:
         json.dump(my_dict, file, indent=4)
+
+
+def extract_subset_features(
+    list_index: list, 
+    features: np.array,
+    most_important: bool,
+    no_features: int
+) -> np.array:
+    '''
+    Extract subset of features based on the 
+    provided list of indices. It selects the first or 
+    last no_features if most_important is True or False 
+    Args:
+        list_index - indices corresponding to feature imp
+        features - complete set of features
+        most_important - triggers to select most or least
+              important features
+        no_features - number of features to be extracted
+    Output:
+        a subset of features
+    '''
+    if most_important:
+        subset_features = features[
+                    :,
+                    list_index[0:no_features],
+                    :
+                ]
+    else:
+        subset_features = features[
+                    :,
+                    list_index[-no_features:],
+                    :
+                ]
+    return subset_features

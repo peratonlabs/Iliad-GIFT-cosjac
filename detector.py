@@ -6,12 +6,15 @@ from os import listdir, makedirs
 from os.path import join, exists, basename
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
 import scipy
 from tqdm import tqdm
 import torch
 import utils.utils
 from utils.utils import (
     apply_binomial_pert_dataset,
+    extract_subset_features,
     fast_gradient_sign_method,
     get_shapley_values,
     get_Drebbin_dataset,
@@ -122,6 +125,10 @@ class Detector(AbstractDetector):
         self.infer_generate_statistics = metaparameters["infer_generate_statistics"]
         self.infer_load_drebbin = metaparameters["infer_load_drebbin"]
         self.infer_platform = metaparameters["infer_platform"]
+        self.feature_importance = metaparameters["infer_feature_importance"]
+        self.random_noise_augmentation = metaparameters["infer_random_noise_augmentation"]
+        self.no_features_least = metaparameters["infer_no_features_least"]
+        self.no_features_most = metaparameters["infer_no_features_most"]
 
     def write_metaparameters(self):
         metaparameters = {
@@ -389,8 +396,8 @@ class Detector(AbstractDetector):
         dataset: np.array
     ) -> list:
         '''
-        Generates adversarial examples for a binary classifier 
-        and the Drebbin dataset using fast gradient sign method 
+        Generates adversarial examples for a binary classifier
+        and the Drebbin dataset using fast gradient sign method
         and save them to disk.
         Args:
             model: deep neural network
@@ -437,8 +444,9 @@ class Detector(AbstractDetector):
         model: DrebinNN,
         method: str,
         agg: str,
-        examples_dirpath: str,
+        p_poison_model_ex_dirpath: str,
         feature_importance: bool = True,
+        random_noise_augmentation: bool = True,
         date_mode: str = 'drebinn'
     ):
 
@@ -485,10 +493,6 @@ class Detector(AbstractDetector):
             )
 
         elif date_mode == 'drebinn_adversarial':
-            print("adversarial examples path:", os.path.join(
-                self.reference_model_path,
-                "adversarial_examples/X_modified_class10_pc0.npy"
-                ))
             adv_exm_class10_pc0 = np.load(os.path.join(
                 self.reference_model_path,
                 "adversarial_examples/X_modified_class10_pc0.npy"
@@ -508,6 +512,7 @@ class Detector(AbstractDetector):
             )
         else:
             pass
+
         if feature_importance:
             feature_importance_index = np.load(os.path.join(
                 self.reference_model_path,
@@ -520,7 +525,7 @@ class Detector(AbstractDetector):
         inputs_np, _ = self.grab_inputs(
             reference_model_samples_dirpath
         )
-        test_inputs_np, _ = self.grab_inputs(examples_dirpath)
+        test_inputs_np, _ = self.grab_inputs(p_poison_model_ex_dirpath)
         # Get access to the testing server samples
         inputs_np = np.concatenate([inputs_np, test_inputs_np])
         ##################################################################
@@ -550,13 +555,14 @@ class Detector(AbstractDetector):
             pass
 
         ##################################################################
-        # For all data options we apply random perturbations.
-        inputs_np, _ = apply_binomial_pert_dataset(
-           inputs_np,
-           self.infer_aug_dataset_factor,
-           self.infer_aug_bin_prob,
-           date_mode
-        )
+        if random_noise_augmentation:
+            # Apply random perturbations and augmentation 
+            inputs_np, _ = apply_binomial_pert_dataset(
+                inputs_np,
+                self.infer_aug_dataset_factor,
+                self.infer_aug_bin_prob,
+                date_mode
+            )
         # Load input to appropriate model.device
         X = torch.from_numpy(inputs_np).float().to(model.device)
 
@@ -585,6 +591,36 @@ class Detector(AbstractDetector):
             test_features = get_shapley_values(model.model, [X], [X])   
             ref_features = get_shapley_values(reference_model.model, [X], [X])
 
+            if feature_importance:
+
+                test_features_least = extract_subset_features(
+                    feature_importance_index,
+                    test_features,
+                    False,
+                    self.no_features_least
+                )
+
+                ref_features_least = extract_subset_features(
+                    feature_importance_index,
+                    ref_features,
+                    False,
+                    self.no_features_least
+                )
+
+                test_features_most = extract_subset_features(
+                    feature_importance_index,
+                    test_features,
+                    True,
+                    self.no_features_most
+                )
+
+                ref_features_most = extract_subset_features(
+                    feature_importance_index,
+                    ref_features,
+                    True,
+                    self.no_features_most
+                )
+
         ##################################################################
 
         elif method == 'jac':
@@ -594,61 +630,72 @@ class Detector(AbstractDetector):
 
             if feature_importance:
 
-                test_features_least = test_features[
-                    :,
-                    feature_importance_index[-80:],
-                    :
-                ]
-                ref_features_least = ref_features[
-                    :,
-                    feature_importance_index[-80:],
-                    :
-                ]
+                test_features_least = extract_subset_features(
+                    feature_importance_index,
+                    test_features,
+                    False,
+                    self.no_features_least
+                )
 
-                test_features_most = test_features[
-                    :,
-                    feature_importance_index[0:20],
-                    :
-                ]
-                ref_features_most = ref_features[
-                    :,
-                    feature_importance_index[0:20],
-                    :
-                ]
+                ref_features_least = extract_subset_features(
+                    feature_importance_index,
+                    ref_features,
+                    False,
+                    self.no_features_least
+                )
+
+                test_features_most = extract_subset_features(
+                    feature_importance_index,
+                    test_features,
+                    True,
+                    self.no_features_most
+                )
+
+                ref_features_most = extract_subset_features(
+                    feature_importance_index,
+                    ref_features,
+                    True,
+                    self.no_features_most
+                )
 
         ##################################################################
         elif method == 'discrete_deriv':
-            
+
             perturbed_inputs_np = get_discrete_derivative_inputs(inputs_np)
             perturbed_inputs_np = torch.from_numpy(perturbed_inputs_np).float().to(model.device)
             # Discrete derivatives (gradients)
             test_features = get_discrete_derivatives(model, X, perturbed_inputs_np)
             ref_features = get_discrete_derivatives(reference_model, X, perturbed_inputs_np)
-            
+
             if feature_importance:
 
-                test_features_least = test_features[
-                    :,
-                    feature_importance_index[-80:],
-                    :
-                ]
-                ref_features_least = ref_features[
-                    :,
-                    feature_importance_index[-80:],
-                    :
-                ]
+                test_features_least = extract_subset_features(
+                    feature_importance_index,
+                    test_features,
+                    False,
+                    self.no_features_least
+                )
 
-                test_features_most = test_features[
-                    :,
-                    feature_importance_index[0:20],
-                    :
-                ]
-                ref_features_most = ref_features[
-                    :,
-                    feature_importance_index[0:20],
-                    :
-                ]
+                ref_features_least = extract_subset_features(
+                    feature_importance_index,
+                    ref_features,
+                    False,
+                    self.no_features_least
+                )
 
+                test_features_most = extract_subset_features(
+                    feature_importance_index,
+                    test_features,
+                    True,
+                    self.no_features_most
+                )
+
+                ref_features_most = extract_subset_features(
+                    feature_importance_index,
+                    ref_features,
+                    True,
+                    self.no_features_most
+                )
         ##################################################################
         elif method == 'model_out':
             test_features = get_scaled_model_output(model, X)
@@ -719,7 +766,33 @@ class Detector(AbstractDetector):
                 base=2
             )**2
             outcome = 0.5*outcome_class0 + 0.5*outcome_class1
+            if np.isnan(outcome): outcome = 0  
         ##############################################################################################################################
+        elif agg == 'MSEavg':
+
+            test_features = test_features.mean(axis=0)
+            ref_features = ref_features.mean(axis=0)
+            outcome = mean_squared_error(test_features, ref_features)
+        ##############################################################################################################################
+        elif agg == 'MAEavg':
+
+            test_features = test_features.mean(axis=0)
+            ref_features = ref_features.mean(axis=0)
+            outcome = mean_absolute_error(test_features, ref_features)
+
+        elif agg == 'adversarial_examples':
+            if method != 'model_out':
+                msg = (
+                    "adversarial_examples is working only "
+                    "with model output method !!!"
+                )
+                raise Exception(msg)
+            inx_adv01, inx_adv10 = identify_adversarial_examples(
+                ref_features,
+                test_features
+            )
+            outcome = len(inx_adv01) + len(inx_adv10)
+
         else:
             pass
 
@@ -749,9 +822,14 @@ class Detector(AbstractDetector):
         self.reference_model_path = os.path.dirname(examples_dirpath)
         if self.infer_platform == 'local':
             self.reference_model_path = self.reference_model_path[2:]
-        print("self.reference_model_path:", self.reference_model_path)
         with open(self.model_layer_map_filepath, "rb") as fp:
             model_layer_map = pickle.load(fp)
+
+        potential_poison_data_path = os.path.dirname(model_filepath)
+        potential_poison_data_path = os.path.join(
+            potential_poison_data_path,
+            'clean-example-data'
+        )
 
         # List all available model and limit to the number provided
         model_path_list = sorted(
@@ -806,7 +884,6 @@ class Detector(AbstractDetector):
                     "Set load_drebbin to calculate adv samples for Drebbin!"
                 )
                 raise Exception(msg)
-            print("Launching generate_adersarial_examples updated!")
 
             list_adversarial_ex = self.generate_adersarial_examples(
                 model,
@@ -821,8 +898,9 @@ class Detector(AbstractDetector):
             model,
             'jac',
             'cosavg',
-            examples_dirpath,
-            True,
+            potential_poison_data_path,
+            self.feature_importance,
+            self.random_noise_augmentation,
             date_mode='drebinn_adversarial'
         )
 

@@ -7,7 +7,6 @@
   "technique_changes": "--",
   "commit_id": "123fakecommitid",
   "repo_name": "https://github.com/plgift/r17",
-  "required": [],
   "additionalProperties": false,
   "type": "object",
   "properties": {
@@ -197,6 +196,32 @@
 		"description": "Platform where the code will be run",
 		"enum": ["local", "test_server"],
 		"type": "string"
+	},
+	"infer_feature_importance":{
+		"description": "Feature Importance Option",
+		"enum": [true, false],
+		"type": "boolean"
+	},
+	"infer_random_noise_augmentation":{
+		"description": "Data input augmentation with random sampling",
+		"enum": [true, false],
+		"type": "boolean"
+	},
+	"infer_no_features_least": {
+		"description": "No of least important features to select ",
+		"type": "number",
+		"minimum": 1,
+		"maximum": 100,
+		"suggested_minimum": 1,
+		"suggested_maximum": 100
+	},
+	"infer_no_features_most": {
+		"description": "No of most important features to select ",
+		"type": "number",
+		"minimum": 1,
+		"maximum": 200,
+		"suggested_minimum": 1,
+		"suggested_maximum": 200
 	}
   }
 }
