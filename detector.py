@@ -4,8 +4,6 @@ import os
 import pickle
 from os import listdir, makedirs
 from os.path import join, exists, basename
-import stat
-
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 import scipy
@@ -21,10 +19,12 @@ from utils.utils import (
     get_flipped_samples_indices,
     get_jac,
     get_discrete_derivatives,
+    get_model_name,
     get_scaled_model_output,
     generate_predictions_for_verification,
     identify_adversarial_examples,
     save_adversarial_examples_binarry_classifier,
+    save_dictionary_to_file,
     scale_probability,
     verify_binary_classifier,
 )
@@ -121,6 +121,7 @@ class Detector(AbstractDetector):
         self.infer_aug_bin_prob = metaparameters["infer_aug_bin_prob"]
         self.infer_generate_statistics = metaparameters["infer_generate_statistics"]
         self.infer_load_drebbin = metaparameters["infer_load_drebbin"]
+        self.infer_platform = metaparameters["infer_platform"]
 
     def write_metaparameters(self):
         metaparameters = {
@@ -214,8 +215,8 @@ class Detector(AbstractDetector):
         logging.info("Models flattened. Fitting feature reduction...")
 
         layer_transform = fit_feature_reduction_algorithm(
-            flat_models, 
-            self.weight_table_params, 
+            flat_models,
+            self.weight_table_params,
             self.input_features
         )
 
@@ -296,8 +297,7 @@ class Detector(AbstractDetector):
         self,
         model: DrebinNN,
         x_dataset: np.array,
-        y_dataset: np.array,
-        reference_model_dirpath: str = '/models/id-00000001',
+        y_dataset: np.array
     ):
         '''
             Calculate main verification scores including
@@ -376,7 +376,7 @@ class Detector(AbstractDetector):
 
         # Specify the file name
         file_path = os.path.join(
-            reference_model_dirpath,
+            self.reference_model_path,
             self.infer_path_adv_examples
         )
         # Writing JSON data
@@ -439,7 +439,6 @@ class Detector(AbstractDetector):
         agg: str,
         examples_dirpath: str,
         feature_importance: bool = True,
-        reference_model_dirpath: str = '/models/id-00000001',
         date_mode: str = 'drebinn'
     ):
 
@@ -467,52 +466,51 @@ class Detector(AbstractDetector):
         # Prepare dataset ingestions
 
         reference_model_path = os.path.join(
-            reference_model_dirpath,
+            self.reference_model_path,
             'model.pt'
         )
         reference_model_samples_dirpath = os.path.join(
-            reference_model_dirpath,
+            self.reference_model_path,
             'clean-example-data'
         )
 
         if date_mode == 'drebinn':
 
-            drebinn_x_train = np.load(os.path.join(
-                reference_model_dirpath,
-                'cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy'
-                )
-            )
-            drebinn_x_test = np.load(os.path.join(
-                reference_model_dirpath,
-                'cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy'
-                )
+            drebbin_np, _ = get_Drebbin_dataset(
+                self.reference_model_path,
+                self.infer_path_drebbin_x_train,
+                self.infer_path_drebbin_x_test,
+                self.infer_path_drebbin_y_train,
+                self.infer_path_drebbin_y_test,
             )
 
         elif date_mode == 'drebinn_adversarial':
+            print("adversarial examples path:", os.path.join(
+                self.reference_model_path,
+                "adversarial_examples/X_modified_class10_pc0.npy"
+                ))
             adv_exm_class10_pc0 = np.load(os.path.join(
-                reference_model_dirpath,
+                self.reference_model_path,
                 "adversarial_examples/X_modified_class10_pc0.npy"
                 )
             )
             adv_exm_class01_pc1 = np.load(os.path.join(
-                reference_model_dirpath,
+                self.reference_model_path,
                 "adversarial_examples/X_modified_class01_pc1.npy"
                 )
             )
-            
+
         elif date_mode == 'poison':
             poison_examples = np.load(os.path.join(
-                reference_model_dirpath,
+                self.reference_model_path,
                 "poisoned_examples/poisoned_features.npy"
                 )
             )
         else:
             pass
-        
-        print("Feature_importance:", feature_importance)
         if feature_importance:
             feature_importance_index = np.load(os.path.join(
-                reference_model_dirpath,
+                self.reference_model_path,
                 'feature_importance/index_array.npy'
                 )
             )
@@ -526,16 +524,15 @@ class Detector(AbstractDetector):
         # Get access to the testing server samples
         inputs_np = np.concatenate([inputs_np, test_inputs_np])
         ##################################################################
-        
+
         # Dataset augmentation choices
 
         if date_mode == 'drebinn':
 
             inputs_np = np.concatenate([
-                inputs_np,
-                drebinn_x_train,
-                drebinn_x_test
-                ]
+               inputs_np,
+               drebbin_np
+               ]
             )
 
         elif date_mode == 'drebinn_adversarial':
@@ -546,10 +543,12 @@ class Detector(AbstractDetector):
                 adv_exm_class01_pc1
                 ]
             )
+
+        elif date_mode == 'poison':
+            inputs_np = np.concatenate([inputs_np, poison_examples])
         else:
             pass
-        
-        print("poison inputs_np shape:", inputs_np.shape)
+
         ##################################################################
         # For all data options we apply random perturbations.
         inputs_np, _ = apply_binomial_pert_dataset(
@@ -558,8 +557,6 @@ class Detector(AbstractDetector):
            self.infer_aug_bin_prob,
            date_mode
         )
-        if date_mode == 'poison':
-            inputs_np = np.concatenate([inputs_np, poison_examples])
         # Load input to appropriate model.device
         X = torch.from_numpy(inputs_np).float().to(model.device)
 
@@ -656,7 +653,6 @@ class Detector(AbstractDetector):
         elif method == 'model_out':
             test_features = get_scaled_model_output(model, X)
             ref_features = get_scaled_model_output(reference_model, X)
-
         ##################################################################
         ##################################################################
 
@@ -750,7 +746,10 @@ class Detector(AbstractDetector):
             examples_dirpath:
             round_training_dataset_dirpath:
         """
-
+        self.reference_model_path = os.path.dirname(examples_dirpath)
+        if self.infer_platform == 'local':
+            self.reference_model_path = self.reference_model_path[2:]
+        print("self.reference_model_path:", self.reference_model_path)
         with open(self.model_layer_map_filepath, "rb") as fp:
             model_layer_map = pickle.load(fp)
 
@@ -786,7 +785,7 @@ class Detector(AbstractDetector):
 
         if self.infer_load_drebbin:
             inputs_np, labels_np = get_Drebbin_dataset(
-                '/models/id-00000001',
+                self.reference_model_path,
                 self.infer_path_drebbin_x_train,
                 self.infer_path_drebbin_x_test,
                 self.infer_path_drebbin_y_train,
@@ -824,10 +823,10 @@ class Detector(AbstractDetector):
             'cosavg',
             examples_dirpath,
             True,
-            date_mode='poison'
+            date_mode='drebinn_adversarial'
         )
 
-        with open(result_filepath, "w") as fp:
-            fp.write(probability)
-
+        my_dict = {get_model_name(model_filepath): probability}
+        save_dictionary_to_file(my_dict, result_filepath)
+        
         logging.info("Trojan probability: %s", probability)
