@@ -7,6 +7,7 @@ import pandas as pd
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
+from utils.utils import save_dictionary_to_file
 
 
 def run_command(model_file: str, gpu_id: int) -> tuple:
@@ -20,12 +21,16 @@ def run_command(model_file: str, gpu_id: int) -> tuple:
         A tuple of strings with stdout, stderr
         and returncode
     '''
+
+    path_components = model_file.split(os.sep)
+    result_file = './scratch/' + path_components[-2] + '.json'
+
     # Set the CUDA_VISIBLE_DEVICES environment variable
     os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
 
     command = (
         f"python entrypoint.py infer --model_filepath {model_file} "
-        "--result_filepath ./scratch/result.json --scratch_dirpath"
+        f"--result_filepath {result_file} --scratch_dirpath"
         " ./scratch --examples_dirpath ./models/id-00000001/clean-example-data"
         " --metaparameters_filepath ./metaparameters.json --schema_filepath "
         "./metaparameters_schema.json --round_training_dataset_dirpath "
@@ -62,9 +67,9 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--dictionary_path",
+    "--dictionary_paths",
     type=str,
-    help="Dictionary with models names and poison prob path",
+    help="paths for dictionary with models names and poison prob path",
     required=True
 )
 
@@ -89,7 +94,6 @@ pattern = os.path.join(base_dir, 'id*/model.pt')
 # Find all files matching the pattern
 model_files = glob.glob(pattern)
 model_files = sorted(model_files)
-
 # Using ThreadPoolExecutor to run commands in parallel
 with ThreadPoolExecutor(max_workers=32) as executor:
     # Schedule the tasks, alternating GPU assignment
@@ -103,11 +107,31 @@ with ThreadPoolExecutor(max_workers=32) as executor:
 
 df = pd.read_csv(args.metadata_path)
 
-with open(args.dictionary_path, 'r') as file:
-    existing_data = json.load(file)
+pattern = os.path.join(args.dictionary_paths, 'id*.json')
+
+# Find all files matching the pattern
+output_files = glob.glob(pattern)
+output_files = sorted(output_files)
+
+my_dict = {}
+for file_path in output_files:
+    with open(file_path, 'r') as file:
+        existing_data = json.load(file)
+    my_dict.update(existing_data)
+
+save_dictionary_to_file(
+    my_dict,
+    os.path.join(args.dictionary_paths, 'result.json')
+)
+
+for file_path in output_files:
+    try:
+        os.remove(file_path)
+    except FileNotFoundError:
+        print(f"File not found: {file_path}")
 
 # Convert the dictionary to a list of tuples (items)
-data_items = list(existing_data.items())
+data_items = list(my_dict.items())
 
 # Create DataFrame
 df_prob = pd.DataFrame(data_items, columns=['model_name', 'probability'])

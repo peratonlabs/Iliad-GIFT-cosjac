@@ -22,9 +22,13 @@
 	"infer_calc_drebbin_adv": false,
 	"infer_save_adv_examples": true,
 	"infer_grad_magnitude": 0.01,
-	"infer_aug_dataset_factor": 100,
 	"infer_aug_bin_prob": 0.009,
 	"infer_generate_statistics": false,
 	"infer_load_drebbin": false,
-	"infer_platform": "local"
+	"infer_platform": "local",
+	"infer_feature_importance": true,
+	"infer_no_features_least": 80,
+	"infer_no_features_most": 20,
+	"infer_random_noise_augmentation": true,
+	"infer_aug_dataset_factor": 100
 }
