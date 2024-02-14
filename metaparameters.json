@@ -14,7 +14,8 @@
 	"train_random_forest_regressor_param_max_features": 1.0,
 	"train_random_forest_regressor_param_min_impurity_decrease": 0.0,
 	"infer_stat_output_file": "statistics.json",
-	"infer_path_adv_examples": "save_adversarial_examples/statistics.json",
+	"infer_path_adv_examples": "save_adversarial_examples/",
+	"infer_path_poisoned_examples": "poisoned_examples",
 	"infer_path_drebbin_x_train": "cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy",
 	"infer_path_drebbin_x_test": "cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy",
 	"infer_path_drebbin_y_train": "cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy",
@@ -22,7 +23,6 @@
 	"infer_calc_drebbin_adv": false,
 	"infer_save_adv_examples": true,
 	"infer_grad_magnitude": 0.01,
-	"infer_aug_bin_prob": 0.009,
 	"infer_generate_statistics": false,
 	"infer_load_drebbin": false,
 	"infer_platform": "local",
@@ -30,5 +30,7 @@
 	"infer_no_features_least": 80,
 	"infer_no_features_most": 20,
 	"infer_random_noise_augmentation": true,
-	"infer_aug_dataset_factor": 100
+	"infer_extra_data_augmentation": "drebinn_adversarial",
+	"infer_aug_dataset_factor": 1,
+	"infer_aug_bin_prob": 0.009
 }

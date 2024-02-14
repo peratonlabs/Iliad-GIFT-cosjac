@@ -60,6 +60,29 @@ singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath 
 
 python run_all_models.py --test_models_path /home/rstefanescu/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/models/ --metadata_path /home/rstefanescu/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/METADATA.csv --dictionary_path /home/rstefanescu/r17/scratch/result.json --pandas_path /home/rstefanescu/r17/scratch/output.csv
 
+# Code capabilities
+
+We implemented 4 different methods based on jacobians, discrete derivatives, Shapley values and model outputs. To aggregate the results we used cosine similarities of avg, avg of cos similarities, jensen-shannon, MSEavg, MAEavg, and adversarial_examples. We also provided three extra data augmentation options based on Drebbin dataset, Drebbin adversarial and a Poisoned dataset. The features from the potential poisoned model were tested against the features of a clean reference model. 
+
+# Extra augmentation methods
+
+## Drebbin dataset
+This dataset is not given in the repository. TrojAI provided it in the form of four Numpy binary files. If these files are available, the path must be provided in the 
+metaparameters variables infer_path_drebbin_x_train, infer_path_drebbin_x_test, infer_path_drebbin_y_train, and infer_path_drebbin_y_test. The x datasets have the size of (no_samples, 991) whereas the y datasets have the size of (no_samples,). 
+
+Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "drebinn".
+
+## Drebin adversarial dataset 
+
+To run with this option, you need to compute the adversarial examples for the Drebbin dataset for the reference model at models/id-00000001/. The adversarial examples calculation is enabled by setting the following metaparameters infer_load_drebbin and infer_calc_drebbin_adv to true. Also set the path where the adversarial examples will be saved in the metaparameter infer_path_adv_examples. The function calculating the adversarial examples is called in detector.py - infer_calc_drebbin_adv. The output consists of four np.ndarrays X_modified_class01_pc0.npy,  X_modified_class01_pc1.npy, X_modified_class10_pc0.npy, X_modified_class10_pc1.npy. It includes adversarial examples of size (no_samples, 991) that switch labels (from class 0 to 1 and class 1 to 0 denoted class01 or class10 in the files names) with respect to probability of class 0 or 1 (denoted pc0 or pc1 in the files names).  
+
+Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "drebinn_adversarial".
+
+## Poison dataset
+The path to poisoned examples is defined by command argument --examples_dirpath, metaparameter infer_path_poisoned_examples and poisoned_features.npy which is hardwired in get_poison_probability function defined in detector.py. 
+
+Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "poison".
+
 # Experimental Results
 ## Jacobian Similarity
 We compute the Jacobian of the reference model and test model at a set of data points. We then compute the cosine similarity of the Jacobians at each of those points. We then averager over the set of points and turn into a probability. 

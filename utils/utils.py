@@ -496,8 +496,7 @@ def identify_adversarial_examples(
 
 def save_adversarial_examples_binarry_classifier(
     path_adv_examples: str,
-    list_samples_adv_examples: list,
-    reference_model_dirpath: str = '/models/id-00000001'
+    list_samples_adv_examples: list
 ):
     '''
     For a binary classifier, we calculated the adversarial examples
@@ -518,7 +517,6 @@ def save_adversarial_examples_binarry_classifier(
 
     for inx, file_name in enumerate(list_file_names):
         file_path = os.path.join(
-            reference_model_dirpath,
             path_adv_examples,
             file_name
         )
@@ -552,6 +550,7 @@ def get_Drebbin_dataset(
         path_drebbin_x_train
         )
     )
+
     drebinn_x_test = np.load(os.path.join(
         reference_model_dirpath,
         path_drebbin_x_test
@@ -582,6 +581,9 @@ def get_Drebbin_dataset(
         drebinn_y_test
         ]
     )
+
+    print("drebinn_x_train label:", drebinn_y_train.shape, type(drebinn_y_train))
+
     return inputs_np, label_np
 
 

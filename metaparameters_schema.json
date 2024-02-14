@@ -125,7 +125,7 @@
 	},
 	"infer_path_adv_examples": {
 		"description": "Path to save adversarial examples from Drebbin dataset",
-		"enum": ["save_adversarial_examples/statistics.json"],
+		"enum": ["save_adversarial_examples/"],
 		"type": "string"
 	},
 	"infer_path_drebbin_x_train": {
@@ -222,6 +222,17 @@
 		"maximum": 200,
 		"suggested_minimum": 1,
 		"suggested_maximum": 200
+	},
+	"infer_extra_data_augmentation":{
+		"description": "Options to augment the three samples dataset",
+		"enum": ["drebinn", "drebinn_adversarial", "poison", "None"],
+		"type": "string"
+	},
+	"infer_path_poisoned_examples":{
+		"description": "Path to poisoned examples ",
+		"enum": ["poisoned_examples"],
+		"type": "string"
 	}
+	
   }
 }

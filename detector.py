@@ -129,6 +129,9 @@ class Detector(AbstractDetector):
         self.random_noise_augmentation = metaparameters["infer_random_noise_augmentation"]
         self.no_features_least = metaparameters["infer_no_features_least"]
         self.no_features_most = metaparameters["infer_no_features_most"]
+        self.infer_extra_data_augmentation = metaparameters["infer_extra_data_augmentation"]
+        self.reference_model_path = ''
+        self.infer_path_poisoned_examples = metaparameters["infer_path_poisoned_examples"]
 
     def write_metaparameters(self):
         metaparameters = {
@@ -493,21 +496,26 @@ class Detector(AbstractDetector):
             )
 
         elif date_mode == 'drebinn_adversarial':
-            adv_exm_class10_pc0 = np.load(os.path.join(
+            path_adv_examples = os.path.join(
                 self.reference_model_path,
-                "adversarial_examples/X_modified_class10_pc0.npy"
+                self.infer_path_adv_examples
+            )
+            adv_exm_class10_pc0 = np.load(os.path.join(
+                path_adv_examples,
+                "X_modified_class10_pc0.npy"
                 )
             )
             adv_exm_class01_pc1 = np.load(os.path.join(
-                self.reference_model_path,
-                "adversarial_examples/X_modified_class01_pc1.npy"
+                path_adv_examples,
+                "X_modified_class01_pc1.npy"
                 )
             )
 
         elif date_mode == 'poison':
             poison_examples = np.load(os.path.join(
                 self.reference_model_path,
-                "poisoned_examples/poisoned_features.npy"
+                self.infer_path_poisoned_examples,
+                "poisoned_features.npy"
                 )
             )
         else:
@@ -822,44 +830,12 @@ class Detector(AbstractDetector):
         self.reference_model_path = os.path.dirname(examples_dirpath)
         if self.infer_platform == 'local':
             self.reference_model_path = self.reference_model_path[2:]
-        with open(self.model_layer_map_filepath, "rb") as fp:
-            model_layer_map = pickle.load(fp)
-
         potential_poison_data_path = os.path.dirname(model_filepath)
         potential_poison_data_path = os.path.join(
             potential_poison_data_path,
             'clean-example-data'
         )
-
-        # List all available model and limit to the number provided
-        model_path_list = sorted(
-            [
-                join(round_training_dataset_dirpath, 'models', model)
-                for model in listdir(join(round_training_dataset_dirpath, 'models'))
-            ]
-        )
-        logging.info(f"Loading %d models...", len(model_path_list))
-
-        model_repr_dict, _ = load_models_dirpath(model_path_list)
-        logging.info("Loaded models. Flattenning...")
-
-        with open(self.models_padding_dict_filepath, "rb") as fp:
-            models_padding_dict = pickle.load(fp)
-
-        for model_class, model_repr_list in model_repr_dict.items():
-            for index, model_repr in enumerate(model_repr_list):
-                model_repr_dict[model_class][index] = pad_model(model_repr, model_class, models_padding_dict)
-
-        # Flatten model
-        flat_models = flatten_models(model_repr_dict, model_layer_map)
-        del model_repr_dict
-        logging.info("Models flattened. Fitting feature reduction...")
-
-        layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
-
-        model, model_repr, model_class = load_model(model_filepath)
-        model_repr = pad_model(model_repr, model_class, models_padding_dict)
-        flat_model = flatten_model(model_repr, model_layer_map[model_class])
+        model, _, _ = load_model(model_filepath)
 
         if self.infer_load_drebbin:
             inputs_np, labels_np = get_Drebbin_dataset(
@@ -881,7 +857,7 @@ class Detector(AbstractDetector):
         if self.infer_calc_drebbin_adv:
             if not self.infer_load_drebbin:
                 msg = (
-                    "Set load_drebbin to calculate adv samples for Drebbin!"
+                    "Set infer_load_drebbin to true to calculate adv samples for Drebbin!"
                 )
                 raise Exception(msg)
 
@@ -889,9 +865,13 @@ class Detector(AbstractDetector):
                 model,
                 inputs_np
             )
+            
             if self.infer_save_adv_examples:
                 save_adversarial_examples_binarry_classifier(
-                    self.infer_path_adv_examples,
+                    os.path.join(
+                        self.reference_model_path,
+                        self.infer_path_adv_examples
+                    ),
                     list_adversarial_ex)
 
         probability = self.get_poison_probability(
@@ -901,7 +881,7 @@ class Detector(AbstractDetector):
             potential_poison_data_path,
             self.feature_importance,
             self.random_noise_augmentation,
-            date_mode='drebinn_adversarial'
+            date_mode=self.infer_extra_data_augmentation
         )
 
         my_dict = {get_model_name(model_filepath): probability}
