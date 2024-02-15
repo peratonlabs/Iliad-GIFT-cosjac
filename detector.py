@@ -20,6 +20,7 @@ from utils.utils import (
     get_Drebbin_dataset,
     get_discrete_derivative_inputs,
     get_flipped_samples_indices,
+    get_important_features,
     get_jac,
     get_discrete_derivatives,
     get_model_name,
@@ -138,6 +139,8 @@ class Detector(AbstractDetector):
         self.infer_path_poisoned_examples = metaparameters["infer_path_poisoned_examples"]
         self.train_random_forest_feature_importance = metaparameters["train_random_forest_feature_importance"]
         self.infer_feature_importance_path = metaparameters["infer_feature_importance_path"]
+        self.infer_feature_extraction_method = metaparameters["infer_feature_extraction_method"]
+        self.infer_proximity_aggregation_method = metaparameters["infer_proximity_aggregation_method"]
 
     def write_metaparameters(self):
         metaparameters = {
@@ -502,10 +505,12 @@ class Detector(AbstractDetector):
             )
 
         elif date_mode == 'drebinn_adversarial':
+            
             path_adv_examples = os.path.join(
                 self.reference_model_path,
                 self.infer_path_adv_examples
             )
+            print("path_adv_examples:", path_adv_examples)
             adv_exm_class10_pc0 = np.load(os.path.join(
                 path_adv_examples,
                 "X_modified_class10_pc0.npy"
@@ -528,6 +533,10 @@ class Detector(AbstractDetector):
             pass
 
         if feature_importance:
+            print(os.path.join(
+                self.reference_model_path,
+                'feature_importance/index_array.npy'
+                ))
             feature_importance_index = np.load(os.path.join(
                 self.reference_model_path,
                 'feature_importance/index_array.npy'
@@ -858,20 +867,13 @@ class Detector(AbstractDetector):
                     "Set load_drebbin to True to generate statistics!"
                 )
                 raise Exception(msg)
-            print("Training random forest model!!!")
-            rfmodel = build_random_forest_classifier(inputs_np, labels_np)
-            importances = rfmodel.feature_importances_
-            indices = np.argsort(importances)[::-1]
             file_path = os.path.join(
                 self.reference_model_path,
                 self.infer_feature_importance_path
             )
-            np.save(
-                file_path,
-                indices
-            )
+            get_important_features(inputs_np, labels_np, file_path)
 
-        if self.infer_generate_statistics: 
+        if self.infer_generate_statistics:
             if not self.infer_load_drebbin:
                 msg = (
                     "Set load_drebbin to True to generate statistics!"
@@ -901,8 +903,8 @@ class Detector(AbstractDetector):
 
         probability = self.get_poison_probability(
             model,
-            'jac',
-            'cosavg',
+            self.infer_feature_extraction_method,
+            self.infer_proximity_aggregation_method,
             potential_poison_data_path,
             self.feature_importance,
             self.random_noise_augmentation,

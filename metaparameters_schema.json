@@ -240,7 +240,17 @@
 	},
 	"infer_feature_importance_path": {
 		"description": "Relative path where to save rf feature importance",
-		"enum": ["feature_importance/index_array1.npy"],
+		"enum": ["feature_importance/index_array.npy"],
+		"type": "string"
+	},
+	"infer_feature_extraction_method": {
+		"description": "Method used to extract features of a model and dataset!!!",
+		"enum": ["jac", "shap", "discrete_deriv", "model_out"],
+		"type": "string"
+	},
+	"infer_proximity_aggregation_method": {
+		"description": "Method used to compare and aggregate extracted features from the models!!!",
+		"enum": ["avgcos", "cosavg", "jensen-shannon", "MSEavg", "MAEavg", "adversarial_examples"],
 		"type": "string"
 	}
   }

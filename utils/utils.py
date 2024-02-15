@@ -8,6 +8,7 @@ from copy import deepcopy
 
 import shap
 from utils.drebinnn import DrebinNN
+from utils.models import build_random_forest_classifier
 
 import torch.nn.functional as F
 
@@ -690,3 +691,24 @@ def extract_subset_features(
                     :
                 ]
     return subset_features
+
+
+def get_important_features(
+        X: np.array,
+        labels: np.array,
+        path: str
+):
+    '''
+    Train a random forest model, get the sorted 
+    features importance and save it to disk
+    Inputs:
+        X - input features
+        labels - classification labels
+        path - disk location to save features importance
+               vector
+    '''
+
+    rfmodel = build_random_forest_classifier(X, labels)
+    importances = rfmodel.feature_importances_
+    indices = np.argsort(importances)[::-1]
+    np.save(path, indices)

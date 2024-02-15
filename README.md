@@ -1,5 +1,8 @@
 This repo is adapted from [NIST's Round 17 example code](https://github.com/usnistgov/trojai-example/tree/cyber-apk-nov2023). 
 
+# Short description 
+The poison model detector is based on comparing features from the potential poisoned model with features from a clean reference model.
+We implemented 4 different features extraction methods based on jacobians, discrete derivatives, Shapley values and model outputs. To comperate and aggregate the results we used cosine similarities of averages, averages of cos similarities, jensen-shannon, MSE of the averages, MAE of the averages avg, and adversarial_examples. We also provided three extra data augmentation options based on Drebbin dataset, Drebbin adversarial and a Poisoned dataset. A feature importance option is also provided. 
 
 # Setup the Conda environment
 
@@ -61,10 +64,8 @@ singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath 
 python run_all_models.py --test_models_path /home/rstefanescu/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/models/ --metadata_path /home/rstefanescu/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/METADATA.csv --dictionary_path /home/rstefanescu/r17/scratch/ --pandas_path /home/rstefanescu/r17/scratch/output.csv
 
 # Code capabilities
-The poison model detector is based on comparing features from the potential poisoned model with features from a clean reference model.
-We implemented 4 different methods based on jacobians, discrete derivatives, Shapley values and model outputs. To aggregate the results we used cosine similarities of avg, avg of cos similarities, jensen-shannon, MSEavg, MAEavg, and adversarial_examples. We also provided three extra data augmentation options based on Drebbin dataset, Drebbin adversarial and a Poisoned dataset. The features from the potential poisoned model were tested against the features of a clean reference model. 
 
-# Extra augmentation methods
+# Extra data augmentation methods
 
 ## Drebbin dataset
 
@@ -82,9 +83,9 @@ It is noticeable  the clean-example-data subfolder is removed from the path.
 
 ## Drebin adversarial dataset 
 
-To run with this option, you need to compute the adversarial examples for the Drebbin dataset for the reference model at models/id-00000001/. The adversarial examples calculation is enabled by setting the following metaparameters infer_load_drebbin and infer_calc_drebbin_adv to true. Also set the path where the adversarial examples will be saved in the metaparameter infer_path_adv_examples. The function calculating the adversarial examples is called in detector.py - infer_calc_drebbin_adv. The output consists of four np.ndarrays saved in four different files X_modified_class01_pc0.npy,  X_modified_class01_pc1.npy, X_modified_class10_pc0.npy, X_modified_class10_pc1.npy. It includes adversarial examples of size (no_samples, 991) that switch labels (from class 0 to 1 and class 1 to 0 denoted class01 or class10 in the files names) with respect to probability of class 0 or 1 (denoted pc0 or pc1 in the files names).  
+To run with this option, you need to compute the adversarial examples for the Drebbin dataset and reference model models/id-00000001/model.pt. Fast gradient sign method is applied. The adversarial examples calculation is enabled by setting the following metaparameters infer_load_drebbin and infer_calc_drebbin_adv to true. Also set the path for saving adversarial examples in the metaparameter infer_path_adv_examples. The function calculating the adversarial examples is infer_calc_drebbin_adv and it is called in detector.py. The output consists of four np.ndarrays saved in four different files X_modified_class01_pc0.npy,  X_modified_class01_pc1.npy, X_modified_class10_pc0.npy, X_modified_class10_pc1.npy. It includes adversarial examples of size (no_samples, 991) that switch labels (from class 0 to 1 and class 1 to 0 denoted class01 or class10 in the files names) with respect to probability of class 0 or 1 (denoted pc0 or pc1 in the files names).  
 
-Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "drebinn_adversarial".
+Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "drebinn_adversarial". Hyperparameter for the adversarial method is infer_grad_magnitude
 
 Full path example:
 
@@ -106,59 +107,18 @@ full_path = models/id-00000001/poisoned_examples
 # Feature Importance
 Feature importance elevated the ROC-AUC scores signficantly. As such, we provide an option to take advantage of it. 
 
-To use it, you will need a dataset such as Drebbin. We computed the feature importance for a random forest model and Drebbin dataset. In case the dataset is available,
-one can compute it 
+To use it, you will need a dataset such as Drebbin. We computed the feature importance for a random forest model and Drebbin dataset. To enable this option, the metaparameter train_random_forest_feature_importance must be set to true. The features importance will be saved to disk at location obtained by merging -examples_dirpath and infer_feature_importance_path.
 
+Full path example:
 
-# Experimental Results
-## Jacobian Similarity
-We compute the Jacobian of the reference model and test model at a set of data points. We then compute the cosine similarity of the Jacobians at each of those points. We then averager over the set of points and turn into a probability. 
-### Real data
-We use all provided sample data from the reference model and the test model. There are only 3 samples included with the reference model. Test models may have the same data.
-- Results: 0.41764 AUC
-### Random Boolean data
-We generate 1000 random samples, uniform over [0,1]^991.
-- Results: 0.47833 AUC
+-examples_dirpath ./models/id-00000001/clean-example-data
+infer_feature_importance_path = "feature_importance/index_array.npy"
+full_path = models/id-00000001/feature_importance/index_array.npy
 
-We also tried combining this with real data, no results of interest.
-### Perturbed real data
-We copy the real samples a few hunded times, then randomly swap 1% of features.
-- Results: 0.50778 AUC
-### cosine between average jacobian
-In previous experiments, I computed cosines between the testa and ref jacobians on different data samples, then averaged.  In this experiment, I avergaged the jacobians first, then took the cosine.
-- Results: 0.48403 AUC (random Boolean data)
-- Results:  0.83972 AUC (perturbed real data) (NOT 0.6)
+# Methods
 
-We copy 852 of the real testing samples a few times, then randomly swap 1% of features.
-- Results: 0.79 AUC
+To extract features from the tested and reference models we've calculating jacobians, shapley values, discrete derivatives and outputs. The metaparameter infer_feature_extraction_method can take any of the following options - "jac", "shap", "discrete_deriv", or "model_out".
 
-We copy all the real testing samples a few times, then randomly swap 1% of features.
-- Results: 0.79111 AUC
+# Proximity and aggregation methods
 
-We copy all the real training samples a few times, then randomly swap 1% of features.
-- Results: 0.79139 AUC
-
-We use all the real training samples.
-- Results: 0.49472 AUC
-
-We use all the real testing samples.
-- Results: 0.50111 AUC
-### Experiments with p
-We copy all the real training samples 5 times, then randomly swap p*100% of features.
-
-- p=0.002: Results: 0.75417 AUC
-- p=0.005: Results: 0.77 AUC
-- p=0.01: Results: 0.79139 AUC
-- p=0.02: Results: 0.80694 AUC
-- p=0.03: Results: 0.80028 AUC
-- p=0.05: Results: 0.77833 AUC
-- p=0.1: Results: 0.31778 AUC (!)
-
-### cosine output
-I put in perturbed real data, computed the outputs, then computed the cosine between the output vectors
-- Results: 0.69292 AUC
-- Results with different output scaling: 0.66472 AUC (this change shouldn't affect AUC, so disrepancy must be from sample noise)
-### evil config
-Since the average cosine jacobian with real data was so bad, I flipped the sign. This is evil.
-- Results: 0.54722
-
+The detector compares the exctracted features by using one of the following proximity and aggregation methods: avgcos, cosavg, jensen-shannon, MSEavg, MAEavg, adversarial_examples. The prefered method can be set in the metaparameter infer_proximity_aggregation_method.  
