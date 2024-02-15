@@ -53,8 +53,6 @@ def avgcosim(v1, v2, eps=1e-8):
     return avgcosim_val/dim1
 
 
-
-
 def get_class_r14(truth_fn):
     cls = read_number_from_csv(truth_fn)
     return cls
@@ -581,8 +579,6 @@ def get_Drebbin_dataset(
         drebinn_y_test
         ]
     )
-
-    print("drebinn_x_train label:", drebinn_y_train.shape, type(drebinn_y_train))
 
     return inputs_np, label_np
 

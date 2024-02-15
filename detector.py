@@ -35,8 +35,12 @@ from utils.abstract import AbstractDetector
 from utils.drebinnn import DrebinNN
 from utils.flatten import flatten_model, flatten_models
 from utils.healthchecks import check_models_consistency
-from utils.models import create_layer_map, load_model, \
-    load_models_dirpath
+from utils.models import (
+    create_layer_map,
+    load_model,
+    load_models_dirpath,
+    build_random_forest_classifier
+)
 from utils.padding import create_models_padding, pad_model
 from utils.reduction import (
     fit_feature_reduction_algorithm,
@@ -132,6 +136,8 @@ class Detector(AbstractDetector):
         self.infer_extra_data_augmentation = metaparameters["infer_extra_data_augmentation"]
         self.reference_model_path = ''
         self.infer_path_poisoned_examples = metaparameters["infer_path_poisoned_examples"]
+        self.train_random_forest_feature_importance = metaparameters["train_random_forest_feature_importance"]
+        self.infer_feature_importance_path = metaparameters["infer_feature_importance_path"]
 
     def write_metaparameters(self):
         metaparameters = {
@@ -844,6 +850,25 @@ class Detector(AbstractDetector):
                 self.infer_path_drebbin_x_test,
                 self.infer_path_drebbin_y_train,
                 self.infer_path_drebbin_y_test,
+            )
+
+        if self.train_random_forest_feature_importance:
+            if not self.infer_load_drebbin:
+                msg = (
+                    "Set load_drebbin to True to generate statistics!"
+                )
+                raise Exception(msg)
+            print("Training random forest model!!!")
+            rfmodel = build_random_forest_classifier(inputs_np, labels_np)
+            importances = rfmodel.feature_importances_
+            indices = np.argsort(importances)[::-1]
+            file_path = os.path.join(
+                self.reference_model_path,
+                self.infer_feature_importance_path
+            )
+            np.save(
+                file_path,
+                indices
             )
 
         if self.infer_generate_statistics: 

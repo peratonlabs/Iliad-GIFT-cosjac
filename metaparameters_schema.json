@@ -232,7 +232,16 @@
 		"description": "Path to poisoned examples ",
 		"enum": ["poisoned_examples"],
 		"type": "string"
+	},
+	"train_random_forest_feature_importance":{
+		"description": "Option to train a random forest model for feature importance",
+		"enum": [true, false],
+		"type": "boolean"
+	},
+	"infer_feature_importance_path": {
+		"description": "Relative path where to save rf feature importance",
+		"enum": ["feature_importance/index_array1.npy"],
+		"type": "string"
 	}
-	
   }
 }
