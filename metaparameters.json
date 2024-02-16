@@ -30,7 +30,7 @@
 	"infer_generate_statistics": false,
 	"infer_load_drebbin": false,
 	"infer_platform": "local",
-	"infer_feature_importance": true,
+	"infer_feature_importance": false,
 	"infer_no_features_least": 80,
 	"infer_no_features_most": 20,
 	"infer_random_noise_augmentation": true,

@@ -1,4 +1,5 @@
 This repo is adapted from [NIST's Round 17 example code](https://github.com/usnistgov/trojai-example/tree/cyber-apk-nov2023). 
+Then you need to copy models/ to learned_parameters/.
 
 # Short description 
 The poison model detector compares features from the potential poisoned model with features from a clean reference model.
