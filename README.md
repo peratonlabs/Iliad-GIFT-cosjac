@@ -2,7 +2,7 @@ This repo is adapted from [NIST's Round 17 example code](https://github.com/usni
 
 # Short description 
 The poison model detector is based on comparing features from the potential poisoned model with features from a clean reference model.
-We implemented 4 different features extraction methods based on jacobians, discrete derivatives, Shapley values and model outputs. To comperate and aggregate the results we used cosine similarities of averages, averages of cos similarities, jensen-shannon, MSE of the averages, MAE of the averages avg, and adversarial_examples. We also provided three extra data augmentation options based on Drebbin dataset, Drebbin adversarial and a Poisoned dataset. A feature importance option is also provided. 
+We implemented four different features extraction methods based on jacobians, discrete derivatives, Shapley values and model outputs. To comperate and aggregate the results we used cosine similarities of averages, averages of cos similarities, jensen-shannon, MSE of the averages, MAE of the averages avg, and adversarial_examples. We also provided three extra data augmentation options based on Drebbin dataset, Drebbin adversarial and a Poisoned dataset. A feature importance option is also provided. 
 
 # Setup the Conda environment
 

@@ -21,7 +21,10 @@ def inference_mode(args):
     jsonschema.validate(instance=config_json, schema=schema_json)
 
     # Create the detector instance and loads the metaparameters.
-    detector = Detector(args.metaparameters_filepath, args.learned_parameters_dirpath)
+    detector = Detector(
+        args.metaparameters_filepath,
+        args.learned_parameters_dirpath,
+        args.reference_model_location)
 
     logging.info("Calling the trojan detector")
     detector.infer(args.model_filepath, args.result_filepath, args.scratch_dirpath, args.examples_dirpath, args.round_training_dataset_dirpath)
@@ -116,6 +119,15 @@ if __name__ == "__main__":
         "instead be overwritten with the newly-configured parameters.",
         required=True,
     )
+
+    inf_parser.add_argument(
+        "--reference_model_location",
+        type=str,
+        help="Path to a directory containing a reference clean model",
+        default="./learned_parameters/models/id-00000001/",
+        required=False,
+    )
+
     inf_parser.add_argument("--source_dataset_dirpath", type=str)
 
     inf_parser.set_defaults(func=inference_mode)
@@ -163,12 +175,20 @@ if __name__ == "__main__":
         "instead be overwritten with the newly-configured parameters.",
         required=True,
     )
+
     configure_parser.add_argument(
         '--automatic_configuration',
         help='Whether to enable automatic training or not, which will retrain the detector across multiple variables',
         action='store_true',
     )
 
+    configure_parser.add_argument(
+        "--reference_model_location",
+        type=str,
+        help="Path to a directory containing a reference clean model",
+        default="./learned_parameters/models/id-00000001/",
+        required=False,
+    )
 
     configure_parser.set_defaults(func=configure_mode)
 
