@@ -1,8 +1,17 @@
 This repo is adapted from [NIST's Round 17 example code](https://github.com/usnistgov/trojai-example/tree/cyber-apk-nov2023). 
 
 # Short description 
-The poison model detector is based on comparing features from the potential poisoned model with features from a clean reference model.
+The poison model detector compares features from the potential poisoned model with features from a clean reference model.
 We implemented four different features extraction methods based on jacobians, discrete derivatives, Shapley values and model outputs. To comperate and aggregate the results we used cosine similarities of averages, averages of cos similarities, jensen-shannon, MSE of the averages, MAE of the averages avg, and adversarial_examples. We also provided three extra data augmentation options based on Drebbin dataset, Drebbin adversarial and a Poisoned dataset. A feature importance option is also provided. 
+
+Here are the working combinations.
+
+| Method    | Cosavg | Avgcos | Jensen-Shannon | MSEavg | MAEavg | Adversarial Examples |
+|-----------|--------|--------|----------------|--------|--------|----------------------|
+| Jac       | Yes    | Yes    | No             | No     | No     | No                   |
+| DiscreteD | Yes    | Yes    | No             | No     | No     | No                   |
+| Model-Out | Yes    | Yes    | Yes            | Yes    | Yes    | Yes                  |
+| Shap      | Yes    | Yes    | No             | No     | No     | No                   |
 
 # Setup the Conda environment
 
@@ -65,59 +74,61 @@ python run_all_models.py --test_models_path /home/rstefanescu/r17_dataset/rev2/c
 
 # Code capabilities
 
-# Extra data augmentation methods
+# Extra data augmentation methods requires datasets that are not available in the repository but could be released by TrojAI organizers. 
 
 ## Drebbin dataset
 
-This dataset is not given in the repository. TrojAI provided it in the form of four Numpy binary files. If these files are available, the relative path must be provided in the metaparameters variables infer_path_drebbin_x_train, infer_path_drebbin_x_test, infer_path_drebbin_y_train, and infer_path_drebbin_y_test. The full path has a special structure and is formed by merging the path given as command argument in --examples_dirpath with the metaparameters variables. The x datasets have the size of (no_samples, 991) whereas the y datasets have the size of (no_samples,). 
+This dataset is not given in the repository. TrojAI provides it in the form of four Numpy binary files. If these files are available, the relative path must be provided in the metaparameters variables infer_path_drebbin_x_train, infer_path_drebbin_x_test, infer_path_drebbin_y_train, and infer_path_drebbin_y_test. The full path is obtained by merging the --reference_model_location inline argument with the metaparameters variables. The x datasets have the size of (no_samples, 991) whereas the y datasets have the size of (no_samples,). 
 
-Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "drebinn".
+Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "drebinn". 
 
 Full path example:
 
---examples_dirpath ./models/id-00000001/clean-example-data
+--reference_model_location ./learned_parameters/models/id-00000001
 infer_path_drebbin_x_train = "cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy"
-full_path = models/id-00000001/cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy
-It is noticeable  the clean-example-data subfolder is removed from the path.
+full_path = learned_parameters/models/id-00000001/cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy
 
+For this option, limit metaparameter infer_aug_dataset_factor to 1. The max_workers should be limited to 8 if run_all_models pipeline is used to evaluate multiple models.  
 
 ## Drebin adversarial dataset 
 
-To run with this option, you need to compute the adversarial examples for the Drebbin dataset and reference model models/id-00000001/model.pt. Fast gradient sign method is applied. The adversarial examples calculation is enabled by setting the following metaparameters infer_load_drebbin and infer_calc_drebbin_adv to true. Also set the path for saving adversarial examples in the metaparameter infer_path_adv_examples. The function calculating the adversarial examples is infer_calc_drebbin_adv and it is called in detector.py. The output consists of four np.ndarrays saved in four different files X_modified_class01_pc0.npy,  X_modified_class01_pc1.npy, X_modified_class10_pc0.npy, X_modified_class10_pc1.npy. It includes adversarial examples of size (no_samples, 991) that switch labels (from class 0 to 1 and class 1 to 0 denoted class01 or class10 in the files names) with respect to probability of class 0 or 1 (denoted pc0 or pc1 in the files names).  
-
-Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "drebinn_adversarial". Hyperparameter for the adversarial method is infer_grad_magnitude
+To run with this option, you need to compute the adversarial examples for the Drebbin dataset and reference model learned_parameters/models/id-00000001/model.pt. Fast gradient sign method is applied. The adversarial examples calculation is enabled by setting metaparameters infer_load_drebbin and infer_calc_drebbin_adv to true. Also set the path for saving adversarial examples and file names in the metaparameters infer_path_adv_examples and infer_adv_examples_file_names. The function calculating the adversarial examples is infer_calc_drebbin_adv and it is called in the detector.py. The output consists of four np.ndarrays saved in four different files named in infer_adv_examples_file_names. It includes adversarial examples of size (no_samples, 991) that switch labels (from class 0 to 1 and class 1 to 0 denoted class01 or class10 in the files names) with respect to the class 0 or class 1 probabilities (denoted pc0 or pc1 in the files names).  
 
 Full path example:
 
--examples_dirpath ./models/id-00000001/clean-example-data
-infer_path_adv_examples =  "save_adversarial_examples/"
-full_path = models/id-00000001/save_adversarial_examples/
-The names of the files are given above - X_modified_class01_pc0.npy,  X_modified_class01_pc1.npy, X_modified_class10_pc0.npy, X_modified_class10_pc1.npy.
+--reference_model_location ./learned_parameters/models/id-00000001
+infer_path_adv_examples =  "save_adversarial_examples"
+infer_adv_examples_file_names = ["X_modified_class01_pc0.npy", "X_modified_class10_pc0.npy", "X_modified_class01_pc1.npy", "X_modified_class10_pc1.npy"]
+Single file full_path = learned_parameters/models/id-00000001/save_adversarial_examples/X_modified_class01_pc0.npy
+
+Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "drebinn_adversarial". Hyperparameter for the adversarial method is infer_grad_magnitude. 
+
 
 ## Poison dataset
-The path to poisoned examples is defined by command argument --examples_dirpath, metaparameter infer_path_poisoned_examples and poisoned_features.npy which is hardwired in get_poison_probability function defined in detector.py. 
+The path to poisoned examples is defined by inline argument --reference_model_location and metaparameters infer_path_poisoned_examples and infer_filename_poisoned_examples. 
 
 Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "poison".
 
 Full path example:
--examples_dirpath ./models/id-00000001/clean-example-data
+--reference_model_location ./learned_parameters/models/id-00000001
 infer_path_poisoned_examples = "poisoned_examples"
+infer_filename_poisoned_examples = "poisoned_features.npy"
 full_path = models/id-00000001/poisoned_examples
 
 # Feature Importance
-Feature importance elevated the ROC-AUC scores signficantly. As such, we provide an option to take advantage of it. 
+Feature importance elevates the ROC-AUC scores signficantly.  
 
-To use it, you will need a dataset such as Drebbin. We computed the feature importance for a random forest model and Drebbin dataset. To enable this option, the metaparameter train_random_forest_feature_importance must be set to true. The features importance will be saved to disk at location obtained by merging -examples_dirpath and infer_feature_importance_path.
+To enable this option, one needs a dataset such as Drebbin. We trained a random forest model using the Drebbin dataset and extracted the features importance. It can be done by setting the metaparameter train_random_forest_feature_importance to true. The features importance will be saved to disk at location obtained by merging --reference_model_location and infer_feature_importance_path.
 
 Full path example:
 
--examples_dirpath ./models/id-00000001/clean-example-data
+--reference_model_location ./learned_parameters/models/id-00000001
 infer_feature_importance_path = "feature_importance/index_array.npy"
-full_path = models/id-00000001/feature_importance/index_array.npy
+full_path = learned_parameters/models/id-00000001/feature_importance/index_array.npy
 
 # Methods
 
-To extract features from the tested and reference models we've calculating jacobians, shapley values, discrete derivatives and outputs. The metaparameter infer_feature_extraction_method can take any of the following options - "jac", "shap", "discrete_deriv", or "model_out".
+To extract features from the tested and reference models we've calculat jacobians, shapley values, discrete derivatives and outputs. The metaparameter infer_feature_extraction_method can take any of the following options - "jac", "shap", "discrete_deriv", or "model_out".
 
 # Proximity and aggregation methods
 

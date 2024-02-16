@@ -125,7 +125,7 @@
 	},
 	"infer_path_adv_examples": {
 		"description": "Path to save adversarial examples from Drebbin dataset",
-		"enum": ["save_adversarial_examples/"],
+		"enum": ["save_adversarial_examples"],
 		"type": "string"
 	},
 	"infer_path_drebbin_x_train": {
@@ -252,6 +252,20 @@
 		"description": "Method used to compare and aggregate extracted features from the models!!!",
 		"enum": ["avgcos", "cosavg", "jensen-shannon", "MSEavg", "MAEavg", "adversarial_examples"],
 		"type": "string"
+	},
+	"infer_adv_examples_file_names": {
+		"description": "File names for adversarial examples.",
+		"type": "array",
+		"items": {
+			"type": "string",
+			"enum": ["X_modified_class01_pc0.npy", "X_modified_class10_pc0.npy", "X_modified_class01_pc1.npy", "X_modified_class10_pc1.npy"]
+		  }
+	},
+	"infer_filename_poisoned_examples": {
+		"description": "File name for poisoned dataset",
+		"enum": ["poisoned_features.npy"],
+		"type": "string"
 	}
   }
 }
+

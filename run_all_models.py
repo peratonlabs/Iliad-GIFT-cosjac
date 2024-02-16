@@ -95,7 +95,7 @@ pattern = os.path.join(base_dir, 'id*/model.pt')
 model_files = glob.glob(pattern)
 model_files = sorted(model_files)
 # Using ThreadPoolExecutor to run commands in parallel
-with ThreadPoolExecutor(max_workers=32) as executor:
+with ThreadPoolExecutor(max_workers=12) as executor:
     # Schedule the tasks, alternating GPU assignment
     futures = [executor.submit(run_command, model_file, inx % 2) for inx, model_file in enumerate(model_files)]
 

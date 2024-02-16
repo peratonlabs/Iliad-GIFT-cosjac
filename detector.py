@@ -148,6 +148,8 @@ class Detector(AbstractDetector):
         self.infer_proximity_aggregation_method = metaparameters["infer_proximity_aggregation_method"]
         if self.infer_platform == 'local':
             self.reference_model_dirpath = self.reference_model_dirpath[2:]
+        self.infer_adv_examples_file_names = metaparameters["infer_adv_examples_file_names"]
+        self.infer_filename_poisoned_examples = metaparameters["infer_filename_poisoned_examples"]
 
     def write_metaparameters(self):
         metaparameters = {
@@ -463,7 +465,7 @@ class Detector(AbstractDetector):
         model: DrebinNN,
         method: str,
         agg: str,
-        test_samples: str,
+        test_samples_path: str,
         feature_importance: bool = True,
         random_noise_augmentation: bool = True,
         date_mode: str = 'drebinn'
@@ -520,42 +522,49 @@ class Detector(AbstractDetector):
             print("path_adv_examples:", path_adv_examples)
             adv_exm_class10_pc0 = np.load(os.path.join(
                 path_adv_examples,
-                "X_modified_class10_pc0.npy"
+                self.infer_adv_examples_file_names[1]
                 )
             )
             adv_exm_class01_pc1 = np.load(os.path.join(
                 path_adv_examples,
-                "X_modified_class01_pc1.npy"
+                self.infer_adv_examples_file_names[3]
                 )
             )
 
         elif date_mode == 'poison':
+            print("path poison:", os.path.join(
+                self.reference_model_dirpath,
+                self.infer_path_poisoned_examples,
+                self.infer_filename_poisoned_examples
+                ))
             poison_examples = np.load(os.path.join(
                 self.reference_model_dirpath,
                 self.infer_path_poisoned_examples,
-                "poisoned_features.npy"
+                self.infer_filename_poisoned_examples
                 )
             )
         else:
             pass
 
         if feature_importance:
-            print(os.path.join(
+            print("Feature importance path:", os.path.join(
                 self.reference_model_dirpath,
-                'feature_importance/index_array.npy'
+                self.infer_feature_importance_path
                 ))
             feature_importance_index = np.load(os.path.join(
                 self.reference_model_dirpath,
-                'feature_importance/index_array.npy'
+                self.infer_feature_importance_path
                 )
             )
         ##################################################################
 
+        print("reference_model_samples_dirpath:", reference_model_samples_dirpath)
         # Load reference model samples
         inputs_np, _ = self.grab_inputs(
             reference_model_samples_dirpath
         )
-        test_inputs_np, _ = self.grab_inputs(test_samples)
+        print("test_samples_path:", test_samples_path)
+        test_inputs_np, _ = self.grab_inputs(test_samples_path)
         # Get access to the testing server samples
         inputs_np = np.concatenate([inputs_np, test_inputs_np])
         ##################################################################
@@ -612,10 +621,10 @@ class Detector(AbstractDetector):
             # This method is slow and requires a lot of memory.
             # Potential memory clogs may apear if large dataset X is provided.
 
-            if date_mode != 'drebinn_adversarial':
+            if date_mode not in ['drebinn_adversarial', 'None']:
                 msg = (
-                    "Shap is compatible with drebinn_adversarial "
-                    "date_mode option!"
+                    "Shap is compatible with drebinn_adversarial and None data "
+                    "augmentation option!"
                 )
                 raise Exception(msg)
             test_features = get_shapley_values(model.model, [X], [X])   
@@ -892,14 +901,15 @@ class Detector(AbstractDetector):
                 model,
                 inputs_np
             )
-            
+
             if self.infer_save_adv_examples:
                 save_adversarial_examples_binarry_classifier(
                     os.path.join(
                         self.reference_model_dirpath,
-                        self.infer_path_adv_examples
+                        self.infer_path_adv_examples,
                     ),
-                    list_adversarial_ex)
+                    list_adversarial_ex,
+                    self.infer_adv_examples_file_names,)
 
         probability = self.get_poison_probability(
             model,
@@ -911,7 +921,11 @@ class Detector(AbstractDetector):
             date_mode=self.infer_extra_data_augmentation
         )
 
-        my_dict = {get_model_name(model_filepath): probability}
-        save_dictionary_to_file(my_dict, result_filepath)
+        if self.infer_platform == 'local':
+            my_dict = {get_model_name(model_filepath): probability}
+            save_dictionary_to_file(my_dict, result_filepath)
+        else:
+            with open(result_filepath, "w") as fp:
+                fp.write(probability)
 
         logging.info("Trojan probability: %s", probability)

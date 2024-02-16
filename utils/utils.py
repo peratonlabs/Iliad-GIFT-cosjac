@@ -442,8 +442,12 @@ def scale_probability(outcome: float, method: str) -> str:
     Output:
         The outcome is scaled between 0 and 1 and converted to string.
     '''
-    if method != 'jensen-shannon':
+    if method in ["cosavg", "avgcos"]:
         outcome = 0.5*(1-outcome)
+    if method in ["MSEavg", "MAEavg"]:
+        outcome = outcome/1000
+    if method == 'adversarial_examples':
+        outcome = 1 - outcome/10000
     probability = np.clip(outcome, 1e-5, 0.99999)
     return str(probability)
 
@@ -495,7 +499,8 @@ def identify_adversarial_examples(
 
 def save_adversarial_examples_binarry_classifier(
     path_adv_examples: str,
-    list_samples_adv_examples: list
+    list_samples_adv_examples: list,
+    adv_examples_file_names: list
 ):
     '''
     For a binary classifier, we calculated the adversarial examples
@@ -504,17 +509,14 @@ def save_adversarial_examples_binarry_classifier(
     torch arrays in the list are then saved to disk as separate files.
     Args:
         path_adv_examples - folder path disk destination
-        list_samples_adv_examples - list of 4 torch arrays with 
+        list_samples_adv_examples - list of 4 torch arrays with
                         adversarial examples 
+        adv_examples_file_names - list with the file names of adversarial
+                        examples
     '''
-    list_file_names = [
-        'X_modified_class01_pc0.npy',
-        'X_modified_class10_pc0.npy',
-        'X_modified_class01_pc1.npy',
-        'X_modified_class10_pc1.npy'
-    ]
-
-    for inx, file_name in enumerate(list_file_names):
+    print("path_adv_examples:", path_adv_examples)
+    print("adv_examples_file_names:", adv_examples_file_names)
+    for inx, file_name in enumerate(adv_examples_file_names):
         file_path = os.path.join(
             path_adv_examples,
             file_name
