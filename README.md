@@ -1,4 +1,4 @@
-This repo is adapted from [NIST's Round 17 example code](https://github.com/usnistgov/trojai-example/tree/cyber-apk-nov2023). 
+This repo is adapted from [NIST's Round 17 example code](https://github.com/usnistgov/trojai-example/tree/cyber-apk-nov2023). The detectors methods were implemented by the Peraton Labs team.
 
 # Short description 
 The poison model detector compares features from the potential poisoned model with features from a clean reference model.

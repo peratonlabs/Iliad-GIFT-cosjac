@@ -83,45 +83,6 @@ class Detector(AbstractDetector):
             self.learned_parameters_dirpath, 
             "layer_transform.bin"
         )
-
-        # TODO: Update skew parameters per round
-        self.model_skew = {
-            "__all__": metaparameters["infer_cyber_model_skew"],
-        }
-
-        self.input_features = metaparameters["train_input_features"]
-        self.weight_table_params = {
-            "random_seed": metaparameters["train_weight_table_random_state"],
-            "mean": metaparameters["train_weight_table_params_mean"],
-            "std": metaparameters["train_weight_table_params_std"],
-            "scaler": metaparameters["train_weight_table_params_scaler"],
-        }
-        self.random_forest_kwargs = {
-            "n_estimators": metaparameters[
-                "train_random_forest_regressor_param_n_estimators"
-            ],
-            "criterion": metaparameters[
-                "train_random_forest_regressor_param_criterion"
-            ],
-            "max_depth": metaparameters[
-                "train_random_forest_regressor_param_max_depth"
-            ],
-            "min_samples_split": metaparameters[
-                "train_random_forest_regressor_param_min_samples_split"
-            ],
-            "min_samples_leaf": metaparameters[
-                "train_random_forest_regressor_param_min_samples_leaf"
-            ],
-            "min_weight_fraction_leaf": metaparameters[
-                "train_random_forest_regressor_param_min_weight_fraction_leaf"
-            ],
-            "max_features": metaparameters[
-                "train_random_forest_regressor_param_max_features"
-            ],
-            "min_impurity_decrease": metaparameters[
-                "train_random_forest_regressor_param_min_impurity_decrease"
-            ],
-        }
         self.infer_path_adv_examples = metaparameters['infer_path_adv_examples']
         self.infer_path_drebbin_x_train = metaparameters['infer_path_drebbin_x_train']
         self.infer_path_drebbin_x_test = metaparameters['infer_path_drebbin_x_test']
@@ -558,12 +519,11 @@ class Detector(AbstractDetector):
             )
         ##################################################################
 
-        print("reference_model_samples_dirpath:", reference_model_samples_dirpath)
         # Load reference model samples
         inputs_np, _ = self.grab_inputs(
             reference_model_samples_dirpath
         )
-        print("test_samples_path:", test_samples_path)
+        
         test_inputs_np, _ = self.grab_inputs(test_samples_path)
         # Get access to the testing server samples
         inputs_np = np.concatenate([inputs_np, test_inputs_np])
