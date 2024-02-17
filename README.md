@@ -2,9 +2,9 @@ This repo is adapted from [NIST's Round 17 example code](https://github.com/usni
 
 # Short description 
 The poison model detector compares features from the potential poisoned model with features from a clean reference model.
-We implemented four different features extraction methods based on jacobians, discrete derivatives, Shapley values and model outputs. To comperate and aggregate the results we used cosine similarities of averages, averages of cos similarities, jensen-shannon, MSE of the averages, MAE of the averages avg, and adversarial_examples. We also provided three extra data augmentation options based on Drebbin dataset, Drebbin adversarial and a Poisoned dataset. A feature importance option is also provided. 
+We implemented four different features extraction methods based on jacobians, discrete derivatives, Shapley values and model outputs. To comperate and aggregate the results we used cosine similarities of averages, averages of cos similarities, jensen-shannon, MSE of the averages, MAE of the averages avg, and adversarial_examples. We also provided three extra data augmentation options based on Drebbin dataset, Drebbin adversarial and a Poisoned dataset. These options require the acquisition of the Drebbin and/or Poisoned datasets which are not provided in this repo but could potentially be released by TrojAI organizers A feature importance option is also provided in case a dataset is available for training a random forest model.
 
-Here are the working combinations.
+Here are the existing tested combinations.
 
 | Method    | Cosavg | Avgcos | Jensen-Shannon | MSEavg | MAEavg | Adversarial Examples |
 |-----------|--------|--------|----------------|--------|--------|----------------------|
@@ -21,19 +21,19 @@ Here are the working combinations.
 4. pip install --upgrade pip
 5.  install tqdm jsonschema jsonargparse scikit-learn shap matplotlib
 
-# Run inference outside of Singularity
+# Run inference outside of Singularity container
 
 ```
 python entrypoint.py infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
 ```
 
-# Build a new container 
+# Build a new container - This option is needed in case you want to submit your code to TrojAI test server to evaluate your results.
 
 ```
 sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac.simg example_trojan_detector.def
 ```
 
-# Container usage: Inferencing Mode - What is the difference between running outside of Singularity and this option?
+# Container usage: Inferencing Mode - This option is needed in case you want to submit your code to TrojAI test server to evaluate your results.
 
 ```
 singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
@@ -68,13 +68,25 @@ singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath 
 
    Complete description available at - https://www.youtube.com/watch?v=n7yB1x2vhKw
 
-# Run probability scores for all test models locally
+# Run probability scores for all test models locally - This is useful when multiple test models are evaluated using our detector.
 
 python run_all_models.py --test_models_path /home/rstefanescu/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/models/ --metadata_path /home/rstefanescu/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/METADATA.csv --dictionary_path /home/rstefanescu/r17/scratch/ --pandas_path /home/rstefanescu/r17/scratch/output.csv
 
 # Code capabilities
 
-# Extra data augmentation methods requires datasets that are not available in the repository but could be released by TrojAI organizers. 
+# Methods
+
+To extract features from the tested and reference models we've calculat jacobians, shapley values, discrete derivatives and outputs. The metaparameter infer_feature_extraction_method can take any of the following options - "jac", "shap", "discrete_deriv", or "model_out". The entire set of metaparameters controlling the methods configurations is available in metaparameters.json file. 
+
+# Proximity and aggregation methods
+
+The detector compares the exctracted features by using one of the following proximity and aggregation methods: avgcos, cosavg, jensen-shannon, MSEavg, MAEavg, adversarial_examples. The prefered method can be set in the metaparameter infer_proximity_aggregation_method.  
+
+# Dataset 
+
+The detector will work on a three samples dataset provided in models/id-00000001/clean-example-data/. By default the option infer_random_noise_augmentation is set to true in the metaparameters.json and together with the metaparameter infer_aug_dataset_factor expand the three samples dataset by applying random binary perturbations. 
+
+# Extra data augmentation methods require datasets that are not available in the repository but could be released by TrojAI organizers. 
 
 ## Drebbin dataset
 
@@ -126,10 +138,3 @@ Full path example:
 infer_feature_importance_path = "feature_importance/index_array.npy"
 full_path = learned_parameters/models/id-00000001/feature_importance/index_array.npy
 
-# Methods
-
-To extract features from the tested and reference models we've calculat jacobians, shapley values, discrete derivatives and outputs. The metaparameter infer_feature_extraction_method can take any of the following options - "jac", "shap", "discrete_deriv", or "model_out".
-
-# Proximity and aggregation methods
-
-The detector compares the exctracted features by using one of the following proximity and aggregation methods: avgcos, cosavg, jensen-shannon, MSEavg, MAEavg, adversarial_examples. The prefered method can be set in the metaparameter infer_proximity_aggregation_method.  
