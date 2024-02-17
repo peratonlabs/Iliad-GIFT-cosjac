@@ -1,5 +1,5 @@
 {
-	"infer_platform": "test_server",
+	"infer_platform": "local",
 	
 	"infer_feature_extraction_method": "jac",
 	"infer_proximity_aggregation_method": "cosavg",

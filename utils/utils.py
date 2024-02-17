@@ -639,7 +639,7 @@ def get_model_name(model_filepath: str) -> str:
     return path_components[-2] if len(path_components) > 1 else None
 
 
-def save_dictionary_to_file(my_dict: dict, filepath: str):
+def save_dictionary_to_file(my_dict: dict, filepath: str, aug: bool = False):
     '''
     Saves a dictionary to file. If the file exists
     my_dict is augmented to the existing dictionary
@@ -647,14 +647,17 @@ def save_dictionary_to_file(my_dict: dict, filepath: str):
     Args:
         my_dict - dictionary 
         filepath - path to save dictionary
+        aug - boolean checking if file exists
+              to update its content
     '''
     # Check if the file exists
-    if os.path.exists(filepath):
-        # Read the existing data
-        with open(filepath, 'r') as file:
-            existing_data = json.load(file)
-            # Update your dictionary with the existing data
-        my_dict.update(existing_data)
+    if aug:
+        if os.path.exists(filepath):
+            # Read the existing data
+            with open(filepath, 'r') as file:
+                existing_data = json.load(file)
+                # Update your dictionary with the existing data
+            my_dict.update(existing_data)
 
     # Write the (updated) dictionary back to the file
     with open(filepath, 'w') as file:
