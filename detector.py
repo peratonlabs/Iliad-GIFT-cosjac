@@ -109,7 +109,13 @@ class Detector(AbstractDetector):
         self.infer_proximity_aggregation_method = metaparameters["infer_proximity_aggregation_method"]
         if self.infer_platform == 'local':
             self.reference_model_dirpath = self.reference_model_dirpath[2:]
-        self.infer_adv_examples_file_names = metaparameters["infer_adv_examples_file_names"]
+        self.infer_adv_examples_file_names = [
+            metaparameters["infer_adv_ex_file_class01_pc0"],
+            metaparameters["infer_adv_ex_file_class10_pc0"],
+            metaparameters["infer_adv_ex_file_class01_pc1"],
+            metaparameters["infer_adv_ex_file_class10_pc1"]
+        ]
+
         self.infer_filename_poisoned_examples = metaparameters["infer_filename_poisoned_examples"]
 
     def write_metaparameters(self):
