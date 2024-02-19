@@ -1,4 +1,6 @@
-This repo is adapted from [NIST's Round 17 example code](https://github.com/usnistgov/trojai-example/tree/cyber-apk-nov2023). The detectors methods were implemented by the Peraton Labs team.
+This repo is adapted from [NIST's Round 17 example code](https://github.com/usnistgov/trojai-example/tree/cyber-apk-nov2023). It contains code developed by the Perspecta Labs/Project Iliad "GIFT" team for the IARPA/TrojAI program. Code was developed by Razvan Stefanescu, Todd Huster and Emmanuel Ekwedike.
+
+Contact: razvan.stefanescu@peratonlabs.com
 
 # Short description 
 The poison model detector compares features from the potential poisoned model with features from a clean reference model.
@@ -42,7 +44,7 @@ singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath 
 # Remote terminal to access google drive via API - Setup rclone to interface with google drive from remote terminal 
 
 1. Set Up an SSH Tunnel With PuTTY
-   a. Hostname – username@ml-9 (rstefanescu@ml-9)
+   a. Hostname – username@ml-9 
    b. Left menu – select ssh and then tunnels
    c. In Source Port tab add 53682 and in destination add localhost: 53682
    d. Open and insert password. 
