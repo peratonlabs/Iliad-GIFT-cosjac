@@ -94,7 +94,7 @@ TrojAI may provide this dataset in the form of four Numpy binary files. The rela
 
 Full path example:
 
---reference_model_location ./learned_parameters/models/id-00000001
+--reference_model_location /learned_parameters/models/id-00000001
 infer_path_drebbin_x_train = "cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy"
 full_path = learned_parameters/models/id-00000001/cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy
 
@@ -106,11 +106,11 @@ Running the detector with this option is enabled by setting metaparameter infer_
 
 ### Calculate adversarial examples for the reference model
 
-This option will compute the adversarial examples for the Drebbin dataset and reference model learned_parameters/models/id-00000001/model.pt. Fast gradient sign method is implemented. The adversarial examples calculation is enabled by setting metaparameters infer_load_drebbin and infer_calc_drebbin_adv to true. Also set the path for saving adversarial examples and file names in the metaparameters infer_path_adv_examples and infer_adv_ex_file_class01_pc0, infer_adv_ex_file_class10_pc0, infer_adv_ex_file_class01_pc1, infer_adv_ex_file_class10_pc1. The function calculating the adversarial examples is infer_calc_drebbin_adv and it is called in the detector.py. The output consists of four np.ndarrays saved in four different files named in infer_adv_examples_file_names. It includes adversarial examples of size (no_samples, 991) that switch labels (from class 0 to 1 and class 1 to 0 denoted class01 or class10 in the files names) with respect to the class 0 or class 1 probabilities (denoted pc0 or pc1 in the files names).  
+This option will compute the adversarial examples for the Drebbin dataset and reference model learned_parameters/models/id-00000001/model.pt. Fast gradient sign method is implemented. The adversarial examples calculation is enabled by setting metaparameters infer_load_drebbin and infer_calc_drebbin_adv to true. The function calculating the adversarial examples is infer_calc_drebbin_adv and it is called in the detector.py. The output consists of four np.ndarrays. Set the path for saving them in the metaparameters infer_path_adv_examples and infer_adv_ex_file_class01_pc0, infer_adv_ex_file_class10_pc0, infer_adv_ex_file_class01_pc1, infer_adv_ex_file_class10_pc1. It includes adversarial examples of size (no_samples, 991) that switch labels (from class 0 to 1 and class 1 to 0 denoted class01 or class10 in the files names) with respect to the class 0 or class 1 probabilities (denoted pc0 or pc1 in the files names).  
 
 Full path example:
 
---reference_model_location ./learned_parameters/models/id-00000001
+--reference_model_location /learned_parameters/models/id-00000001
 infer_path_adv_examples =  "save_adversarial_examples"
 infer_adv_examples_file_names = ["X_modified_class01_pc0.npy", "X_modified_class10_pc0.npy", "X_modified_class01_pc1.npy", "X_modified_class10_pc1.npy"]
 Single file full_path = learned_parameters/models/id-00000001/save_adversarial_examples/X_modified_class01_pc0.npy
@@ -124,7 +124,7 @@ Running the detector with this option is enabled by setting metaparameter infer_
 TrojAI may provide this dataset. The path to poisoned examples is defined by inline argument --reference_model_location and metaparameters infer_path_poisoned_examples and infer_filename_poisoned_examples. 
 
 Full path example:
---reference_model_location ./learned_parameters/models/id-00000001
+--reference_model_location /learned_parameters/models/id-00000001
 infer_path_poisoned_examples = "poisoned_examples"
 infer_filename_poisoned_examples = "poisoned_features.npy"
 full_path = models/id-00000001/poisoned_examples
@@ -138,7 +138,7 @@ To enable this option, one needs a dataset such as Drebbin. We trained a random 
 
 Full path example:
 
---reference_model_location ./learned_parameters/models/id-00000001
+--reference_model_location /learned_parameters/models/id-00000001
 infer_feature_importance_path = "feature_importance/index_array.npy"
 full_path = learned_parameters/models/id-00000001/feature_importance/index_array.npy
 

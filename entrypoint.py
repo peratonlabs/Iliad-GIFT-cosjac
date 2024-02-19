@@ -124,7 +124,7 @@ if __name__ == "__main__":
         "--reference_model_location",
         type=str,
         help="Path to a directory containing a reference clean model",
-        default="./learned_parameters/models/id-00000001/",
+        default="/learned_parameters/models/id-00000001/",
         required=False,
     )
 
