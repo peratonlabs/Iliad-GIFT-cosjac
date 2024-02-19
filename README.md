@@ -70,7 +70,7 @@ singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath 
 
 # Run probability scores for all test models locally - This is useful when multiple test models are evaluated using our detector.
 
-python run_all_models.py --test_models_path /home/rstefanescu/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/models/ --metadata_path /home/rstefanescu/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/METADATA.csv --dictionary_path /home/rstefanescu/r17/scratch/ --pandas_path /home/rstefanescu/r17/scratch/output.csv
+python run_all_models.py --test_models_path ~/cyber-apk-nov2023-train-rev2/models/ --metadata_path ~/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/METADATA.csv --dictionary_path ~/r17/scratch/ --pandas_path ~/r17/scratch/output.csv
 
 # Code capabilities
 
