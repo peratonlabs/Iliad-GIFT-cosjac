@@ -256,6 +256,9 @@ class Detector(AbstractDetector):
         inputs_np = None
         g_truths = []
         
+        print("examples_dirpath:", examples_dirpath)
+        if os.path.exists(examples_dirpath):
+            print(f"The folder '{examples_dirpath}' exists.")
         for examples_dir_entry in os.scandir(examples_dirpath):
             if (examples_dir_entry.is_file() and
                     examples_dir_entry.name.endswith(".npy")):
