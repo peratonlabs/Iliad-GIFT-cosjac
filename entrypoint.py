@@ -10,6 +10,11 @@ from detector import Detector
 
 warnings.filterwarnings("ignore")
 
+
+def preprocessing_mode(args):
+    print("I am in preprocessing_mode!!!")
+
+
 def inference_mode(args):
     # Validate config file against schema
     with open(args.metaparameters_filepath) as config_file:
@@ -55,11 +60,8 @@ if __name__ == "__main__":
     )
 
     parser.set_defaults(func=lambda args: parser.print_help())
-
     subparser = parser.add_subparsers(dest='cmd', required=True)
-
     inf_parser = subparser.add_parser('infer', help='Execute container in inference mode for TrojAI detection.')
-
     inf_parser.add_argument(
         "--model_filepath",
         type=str,
@@ -96,7 +98,6 @@ if __name__ == "__main__":
         "rounds training dataset.",
         required=True
     )
-
     inf_parser.add_argument(
         "--metaparameters_filepath",
         help="Path to JSON file containing values of tunable paramaters to be used "
@@ -119,7 +120,6 @@ if __name__ == "__main__":
         "instead be overwritten with the newly-configured parameters.",
         required=True,
     )
-
     inf_parser.add_argument(
         "--reference_model_location",
         type=str,
@@ -127,9 +127,7 @@ if __name__ == "__main__":
         default="/learned_parameters/models/id-00000001/",
         required=False,
     )
-
     inf_parser.add_argument("--source_dataset_dirpath", type=str)
-
     inf_parser.set_defaults(func=inference_mode)
 
 

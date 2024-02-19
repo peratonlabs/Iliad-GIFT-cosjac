@@ -108,7 +108,7 @@ class Detector(AbstractDetector):
         self.infer_feature_extraction_method = metaparameters["infer_feature_extraction_method"]
         self.infer_proximity_aggregation_method = metaparameters["infer_proximity_aggregation_method"]
         if self.infer_platform == 'local':
-            self.reference_model_dirpath = self.reference_model_dirpath[2:]
+            self.reference_model_dirpath = self.reference_model_dirpath[1:]
         self.infer_adv_examples_file_names = [
             metaparameters["infer_adv_ex_file_class01_pc0"],
             metaparameters["infer_adv_ex_file_class10_pc0"],
@@ -256,11 +256,6 @@ class Detector(AbstractDetector):
         inputs_np = None
         g_truths = []
         
-        print("examples_dirpath:", examples_dirpath)
-        if os.path.exists(examples_dirpath):
-            print(f"The folder '{examples_dirpath}' exists.")
-        else:
-            print(f"The folder '{examples_dirpath}' does not exists.")
         for examples_dir_entry in os.scandir(examples_dirpath):
             if (examples_dir_entry.is_file() and
                     examples_dir_entry.name.endswith(".npy")):
