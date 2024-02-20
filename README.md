@@ -1,4 +1,4 @@
-This repo is adapted from [NIST's Round 17 example code](https://github.com/usnistgov/trojai-example/tree/cyber-apk-nov2023). It contains code developed by the Perspecta Labs/Project Iliad "GIFT" team for the IARPA/TrojAI program. Code was developed by Razvan Stefanescu, Todd Huster and Emmanuel Ekwedike.
+This repo is adapted from [NIST's Round 17 example code](https://github.com/usnistgov/trojai-example/tree/cyber-apk-nov2023). It contains code developed by the Perspecta Labs/Project Iliad "GIFT" team for the IARPA/TrojAI program. Code was developed by Razvan Stefanescu, Todd Huster, Peter Lin and Emmanuel Ekwedike.
 
 Contact: razvan.stefanescu@peratonlabs.com
 
@@ -21,7 +21,7 @@ Here are the existing tested combinations.
 2. conda activate r17_update
 3. conda install pytorch=1.12.1 torchvision torchaudio cudatoolkit=11.3 -c pytorch
 4. pip install --upgrade pip
-5.  install tqdm jsonschema jsonargparse scikit-learn shap matplotlib
+5. pip install tqdm jsonschema jsonargparse scikit-learn shap matplotlib
 
 # Run inference outside of Singularity container
 
