@@ -373,7 +373,7 @@ class Detector(AbstractDetector):
         # Specify the file name
         file_path = os.path.join(
             self.reference_model_dirpath,
-            self.infer_path_adv_examples
+            self.infer_stat_output_file
         )
         # Writing JSON data
         with open(file_path, 'w') as json_file:
@@ -827,57 +827,6 @@ class Detector(AbstractDetector):
         """
 
         model, _, _ = load_model(model_filepath)
-
-        if self.infer_load_drebbin:
-            inputs_np, labels_np = get_Drebbin_dataset(
-                self.reference_model_dirpath,
-                self.infer_path_drebbin_x_train,
-                self.infer_path_drebbin_x_test,
-                self.infer_path_drebbin_y_train,
-                self.infer_path_drebbin_y_test,
-            )
-
-        if self.train_random_forest_feature_importance:
-            if not self.infer_load_drebbin:
-                msg = (
-                    "Set load_drebbin to True to generate statistics!"
-                )
-                raise Exception(msg)
-            file_path = os.path.join(
-                self.reference_model_dirpath,
-                self.infer_feature_importance_path
-            )
-            get_important_features(inputs_np, labels_np, file_path)
-
-        if self.infer_generate_statistics:
-            if not self.infer_load_drebbin:
-                msg = (
-                    "Set load_drebbin to True to generate statistics!"
-                )
-                raise Exception(msg)
-            self.generate_statistics_datasets(model, inputs_np, labels_np)
-
-        if self.infer_calc_drebbin_adv:
-            if not self.infer_load_drebbin:
-                msg = (
-                    "Set infer_load_drebbin to true to calculate adv samples for Drebbin!"
-                )
-                raise Exception(msg)
-
-            list_adversarial_ex = self.generate_adersarial_examples(
-                model,
-                inputs_np
-            )
-
-            if self.infer_save_adv_examples:
-                save_adversarial_examples_binarry_classifier(
-                    os.path.join(
-                        self.reference_model_dirpath,
-                        self.infer_path_adv_examples,
-                    ),
-                    list_adversarial_ex,
-                    self.infer_adv_examples_file_names,)
-
         probability = self.get_poison_probability(
             model,
             self.infer_feature_extraction_method,
@@ -987,7 +936,6 @@ class Preprocess(Detector):
             self.infer_path_drebbin_y_train,
             self.infer_path_drebbin_y_test,
         )
-        print("inputs_np, labels_np shape:", self.inputs_np.shape, self.labels_np.shape)
 
 
     def feature_importance_calc(self):
@@ -1001,10 +949,43 @@ class Preprocess(Detector):
                 self.reference_model_dirpath,
                 self.infer_feature_importance_path
             )
-            self.infer_feature_importance_path
             if not os.path.isdir(os.path.split(file_path)[0]):
                 print(f"Folder {os.path.split(file_path)[0]} does not exist!!!")
                 os.mkdir(os.path.split(file_path)[0])
 
              
             get_important_features(self.inputs_np, self.labels_np, file_path)
+
+    def generate_statistics(self, model_filepath):
+        model, _, _ = load_model(model_filepath)
+        if self.infer_generate_statistics:
+            if not self.infer_load_drebbin:
+                msg = (
+                    "Set load_drebbin to True to generate statistics!"
+                )
+                raise Exception(msg)
+            self.generate_statistics_datasets(model, self.inputs_np, self.labels_np)   
+
+
+    def get_adversarial_examples(self, model_filepath):
+        model, _, _ = load_model(model_filepath)
+        if self.infer_calc_drebbin_adv:
+            if not self.infer_load_drebbin:
+                msg = (
+                    "Set infer_load_drebbin to true to calculate adv samples for Drebbin!"
+                )
+                raise Exception(msg)
+
+            list_adversarial_ex = self.generate_adersarial_examples(
+                model,
+                self.inputs_np
+            )
+
+            if self.infer_save_adv_examples:
+                save_adversarial_examples_binarry_classifier(
+                    os.path.join(
+                        self.reference_model_dirpath,
+                        self.infer_path_adv_examples,
+                    ),
+                    list_adversarial_ex,
+                    self.infer_adv_examples_file_names)  

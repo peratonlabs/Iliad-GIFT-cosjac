@@ -515,6 +515,10 @@ def save_adversarial_examples_binarry_classifier(
                         examples
     '''
     print("path_adv_examples:", path_adv_examples)
+    if not os.path.isdir(path_adv_examples):
+        print(f"Folder {path_adv_examples} does not exist!!!")
+        os.mkdir(path_adv_examples)
+
     print("adv_examples_file_names:", adv_examples_file_names)
     for inx, file_name in enumerate(adv_examples_file_names):
         file_path = os.path.join(

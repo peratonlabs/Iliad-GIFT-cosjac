@@ -42,6 +42,9 @@ def preprocessing_mode(args):
     )
     preproc.load_drebbin()
     preproc.feature_importance_calc()
+    preproc.generate_statistics(args.model_filepath)
+    preproc.get_adversarial_examples(args.model_filepath)
+    
 
 def inference_mode(args):
     
