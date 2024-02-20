@@ -5,27 +5,49 @@ import logging
 import os
 import warnings
 
+from argparse import ArgumentParser
 import jsonschema
 
-from detector import Detector
+from detector import Detector, Preprocess
 
 warnings.filterwarnings("ignore")
 
-
-def preprocessing_mode(args):
-    print("I am in preprocessing_mode!!!")
-
-
-def inference_mode(args):
-    # Validate config file against schema
-    with open(args.metaparameters_filepath) as config_file:
+def test_schema(metaparameters_filepath: str, scheme_filepath: str):
+    '''
+    Verify if metaparameters definitions satisfy the provided scheme
+    Args:
+        metaparameters_filepath: path location of the metaparameters file
+        schema_filepath: path location of the metaparameters scheme file 
+    '''
+    with open(metaparameters_filepath) as config_file:
         config_json = json.load(config_file)
-    with open(args.schema_filepath) as schema_file:
+    with open(scheme_filepath) as schema_file:
         schema_json = json.load(schema_file)
 
     # Throws a fairly descriptive error if validation fails.
     jsonschema.validate(instance=config_json, schema=schema_json)
 
+def preprocessing_mode(args):
+    
+    test_schema(args.metaparameters_filepath, args.schema_filepath)
+    print("args.drebbin_dataset_dirpath:", args.drebbin_dataset_dirpath)
+
+    preproc = Preprocess(
+        args.metaparameters_filepath,
+        args.learned_parameters_dirpath,
+        os.path.join(args.reference_model_destination_folder, args.reference_model_origin),
+        args.reference_model_origin,
+        args.reference_model_destination_folder,
+        args.drebbin_dataset_dirpath
+    )
+    preproc.load_drebbin()
+    preproc.feature_importance_calc()
+
+def inference_mode(args):
+    
+    # Validate config file against schema
+    test_schema(args.metaparameters_filepath, args.schema_filepath)
+    
     # Create the detector instance and loads the metaparameters.
     detector = Detector(
         args.metaparameters_filepath,
@@ -131,7 +153,6 @@ def add_shared_arguments(subparser):
 
 
 if __name__ == "__main__":
-    from argparse import ArgumentParser
 
     temp_parser = ArgumentParser(add_help=False)
 
@@ -199,6 +220,13 @@ if __name__ == "__main__":
 
     # Create the 'preprocess' subparser  
     preprocess_parser = subparser.add_parser('preprocess', help='Preprocess data for TrojAI detection.')
+    preprocess_parser.add_argument(
+    "--drebbin_dataset_dirpath",
+    type=str,
+    help="Local system full path to drebbin_dataset_dirpath",
+    required=True,
+    )
+    "/home/rstefanescu/cyber-apk-nov2023-vectorized-drebin",
     # Define a function to add the shared option
     ##################3
     add_shared_arguments(preprocess_parser)

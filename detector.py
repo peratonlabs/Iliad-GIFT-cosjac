@@ -5,10 +5,12 @@ import pickle
 from os import listdir, makedirs
 from os.path import join, exists, basename
 import numpy as np
+from pathlib import Path
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
 import scipy
+import shutil
 from tqdm import tqdm
 import torch
 import utils.utils
@@ -47,8 +49,7 @@ from utils.reduction import (
     fit_feature_reduction_algorithm,
     use_feature_reduction_algorithm,
 )
-
-
+        
 class Detector(AbstractDetector):
     def __init__(
         self,
@@ -895,3 +896,115 @@ class Detector(AbstractDetector):
                 fp.write(probability)
 
         logging.info("Trojan probability: %s", probability)
+
+class Preprocess(Detector):
+    def __init__(self,
+        metaparameter_filepath,
+        learned_parameters_dirpath,
+        reference_model_dirpath,
+        reference_model_origin,
+        reference_model_destination_folder,
+        drebbin_dataset_dirpath
+        ):
+        # Initialize the parent class with its parameters
+        super().__init__(
+            metaparameter_filepath,
+            learned_parameters_dirpath,
+            reference_model_dirpath,
+        )
+        
+        self.reference_model_origin = reference_model_origin
+
+        # Copy reference model to learned_parameters folder
+        if self.infer_platform == 'local':
+            reference_model_destination_folder = reference_model_destination_folder[1:]
+
+        self.reference_model_destination_folder = reference_model_destination_folder
+
+        root_reference_model_origin = reference_model_origin.split(os.sep)[0]
+        reference_model_destination_folder = join(
+            reference_model_destination_folder,
+            root_reference_model_origin
+        )
+
+        if not os.path.isdir(reference_model_destination_folder):
+
+            try:  
+                shutil.copytree(
+                    root_reference_model_origin,
+                    reference_model_destination_folder
+                    )
+                logging.info(f"Folder copied successfully from "
+                        f"{root_reference_model_origin} to "
+                        f"{reference_model_destination_folder}")
+            except Exception as e:
+                logging.error(f"Error occurred while copying the folder: {e}")
+        else:
+            logging.info(f"Reference model folder {reference_model_destination_folder} exists! No need for files transfer!")
+
+        # Copy Drebbin dataset to learned_parameters
+        self.drebbin_dataset_path = join(
+            self.reference_model_destination_folder,
+            self.reference_model_origin,
+            drebbin_dataset_dirpath.split(os.sep)[-1]
+        )
+        if not os.path.isdir(self.drebbin_dataset_path):
+            try:  
+                shutil.copytree(
+                    drebbin_dataset_dirpath,
+                    self.drebbin_dataset_path
+                )
+                logging.info(f"Folder copied successfully from "
+                            f"{drebbin_dataset_dirpath} to "
+                            f"{self.drebbin_dataset_path}")
+            except Exception as e:
+                logging.error(f"Error occurred while copying the folder: {e}")
+            else:
+                logging.info(f"Drebbin Folder {self.drebbin_dataset_path} exists! No need for files transfer!")
+
+
+        
+    def load_drebbin(self):
+        
+        drebin_paths = [
+                self.infer_path_drebbin_x_train,
+                self.infer_path_drebbin_x_test,
+                self.infer_path_drebbin_y_train,
+                self.infer_path_drebbin_y_test
+        ]
+       
+        for path in drebin_paths:
+            if not os.path.isfile(join(self.reference_model_dirpath, path)):
+                logging.info(f"Drebbin folder does not exist! Nothing to do")
+                self.drebbin_exist = False       
+                return 
+        self.drebbin_exist = True
+
+        self.inputs_np, self.labels_np = get_Drebbin_dataset(
+            self.reference_model_dirpath,
+            self.infer_path_drebbin_x_train,
+            self.infer_path_drebbin_x_test,
+            self.infer_path_drebbin_y_train,
+            self.infer_path_drebbin_y_test,
+        )
+        print("inputs_np, labels_np shape:", self.inputs_np.shape, self.labels_np.shape)
+
+
+    def feature_importance_calc(self):
+        if self.train_random_forest_feature_importance:
+            if not self.infer_load_drebbin:
+                msg = (
+                    "Set load_drebbin to True to generate statistics!"
+                )
+                raise Exception(msg)
+            file_path = os.path.join(
+                self.reference_model_dirpath,
+                self.infer_feature_importance_path
+            )
+            self.infer_feature_importance_path
+            if not os.path.isdir(os.path.split(file_path)[0]):
+                print(f"Folder {os.path.split(file_path)[0]} does not exist!!!")
+                os.mkdir(os.path.split(file_path)[0])
+
+             
+            get_important_features(self.inputs_np, self.labels_np, file_path)
