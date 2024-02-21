@@ -10,36 +10,6 @@
   "additionalProperties": false,
   "type": "object",
   "properties": {
-	"infer_stat_output_file": {
-		"description": "Path to output statistics file",
-		"enum": ["statistics.json"],
-		"type": "string"
-	},
-	"infer_path_adv_examples": {
-		"description": "Path to save adversarial examples from Drebbin dataset",
-		"enum": ["save_adversarial_examples"],
-		"type": "string"
-	},
-	"infer_path_drebbin_x_train": {
-		"description": "Path to drebbin x train dataset",
-		"enum": ["cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy"],
-		"type": "string"
-	},
-	"infer_path_drebbin_x_test": {
-		"description": "Path to drebbin x test dataset",
-		"enum": ["cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy"],
-		"type": "string"
-	},
-	"infer_path_drebbin_y_train":{
-		"description": "Path to drebbin y train dataset",
-		"enum": ["cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy"],
-		"type": "string"
-	},
-	"infer_path_drebbin_y_test":{
-		"description": "Path to drebbin y test dataset",
-		"enum": ["cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy"],
-		"type": "string"
-	},
 	"infer_calc_drebbin_adv": {
 		"description": "Flag for calculating drebbin adversarial examples",
 		"enum": [true, false],
@@ -120,20 +90,10 @@
 		"enum": ["drebinn", "drebinn_adversarial", "poison", "None"],
 		"type": "string"
 	},
-	"infer_path_poisoned_examples":{
-		"description": "Path to poisoned examples ",
-		"enum": ["poisoned_examples"],
-		"type": "string"
-	},
 	"train_random_forest_feature_importance":{
 		"description": "Option to train a random forest model for feature importance",
 		"enum": [true, false],
 		"type": "boolean"
-	},
-	"infer_feature_importance_path": {
-		"description": "Relative path where to save rf feature importance",
-		"enum": ["feature_importance/index_array.npy"],
-		"type": "string"
 	},
 	"infer_feature_extraction_method": {
 		"description": "Method used to extract features of a model and dataset!!!",
@@ -145,30 +105,15 @@
 		"enum": ["avgcos", "cosavg", "jensen-shannon", "MSEavg", "MAEavg", "adversarial_examples"],
 		"type": "string"
 	},
-	"infer_adv_ex_file_class01_pc0": {
-		"description": "File name for adversarial examples for class 0 probability switching from class 0 to 1",
-		"enum": ["X_modified_class01_pc0.npy"],
-		"type": "string"
+	"infer_drebbin_dataset_exist": {
+		"description": "Boolean parameter indicating the presence of the Drebbin dataset.",
+		"enum": [true, false],
+		"type": "boolean"
 	},
-	"infer_adv_ex_file_class10_pc0": {
-		"description": "File name for adversarial examples for class 0 probability switching from class 1 to 0",
-		"enum": ["X_modified_class10_pc0.npy"],
-		"type": "string"
-	},
-	"infer_adv_ex_file_class01_pc1": {
-		"description": "File name for adversarial examples for class 1 probability switching from class 0 to 1",
-		"enum": ["X_modified_class01_pc1.npy"],
-		"type": "string"
-	},
-	"infer_adv_ex_file_class10_pc1": {
-		"description": "File name for adversarial examples for class 1 probability switching from class 1 to 0",
-		"enum": ["X_modified_class10_pc1.npy"],
-		"type": "string"
-	},
-	"infer_filename_poisoned_examples": {
-		"description": "File name for poisoned dataset",
-		"enum": ["poisoned_features.npy"],
-		"type": "string"
+	"infer_poison_dataset_exist": {
+		"description": "Boolean parameter indicating the presence of the poison dataset.",
+		"enum": [true, false],
+		"type": "boolean"
 	}
   }
 }

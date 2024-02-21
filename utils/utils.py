@@ -529,61 +529,43 @@ def save_adversarial_examples_binarry_classifier(
 
 
 def get_Drebbin_dataset(
-    reference_model_dirpath: str,
-    path_drebbin_x_train: str,
-    path_drebbin_x_test: str,
-    path_drebbin_y_train: str,
-    path_drebbin_y_test: str,
+    drebbin_dataset_dirpath: str,
 ) -> np.ndarray:
     '''Load Drebbin dataset features and store it 
     in a numpy array structure
     Args:
-        reference_model_dirpath: main path
-        path_drebbin_x_train: path to train dataset
-        path_drebbin_x_test: path to test dataset
-        path_drebbin_y_train: path to train labels dataset
-        path_drebbin_y_test: path to test labels dataset
+        drebbin_dataset_dirpath: main path
     Output:
         inputs_np - concatenated train and test features data
         label_np - concatenated train and test labels data
     '''
-    drebinn_x_train = np.load(os.path.join(
-        reference_model_dirpath,
-        path_drebbin_x_train
-        )
-    )
 
-    drebinn_x_test = np.load(os.path.join(
-        reference_model_dirpath,
-        path_drebbin_x_test
-        )
-    )
+    drebin_paths = [
+        "x_train_sel.npy",
+        "x_test_sel.npy",
+        "y_train_sel.npy",
+        "y_test_sel.npy"
+    ]
+    
+    datasets = []
+    for path in drebin_paths:
+        full_path = os.path.join(drebbin_dataset_dirpath, path)
+        if not os.path.isfile(full_path):
+            return np.empty((0,)), np.empty((0,))
+        else:
+            datasets.append(np.load(full_path))
 
-    # Load test model samples
     inputs_np = np.concatenate([
-        drebinn_x_train,
-        drebinn_x_test
+        datasets[0],
+        datasets[1]
         ]
     )
 
-    drebinn_y_train = np.load(os.path.join(
-        reference_model_dirpath,
-        path_drebbin_y_train
-        )
-    )
-    drebinn_y_test = np.load(os.path.join(
-        reference_model_dirpath,
-        path_drebbin_y_test
-        )
-    )
-
-    # Load test model samples
     label_np = np.concatenate([
-        drebinn_y_train,
-        drebinn_y_test
+        datasets[2],
+        datasets[3]
         ]
     )
-
     return inputs_np, label_np
 
 
