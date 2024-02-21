@@ -31,7 +31,7 @@ Two pipelines configure and infer are implemented. The configure prepares the de
 
 The configure mode must be run first with a minimum setup. It will copy the reference model to the container. The repository contains a reference model at models/id-00000001/. 
 
-python entrypoint.py configure --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json  --learned_parameters_dirpath ./learned_parameters/ --drebbin_dataset_dirpath
+python entrypoint.py configure --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json  --learned_parameters_dirpath ./learned_parameters/ 
 
 At full capacity, it copies Drebbin and Poison datasets to the container, calculates features importance for a surrogate random forest model, generates adversarial examples and compute statistics for the reference model. It requires the existance of the Drebbin and Poison datasets which are not available in the repository. To process these datasets metaparameters infer_drebbin_dataset_exist and infer_poison_dataset_exist must be set to true. Set also to true metaparameter infer_load_drebbin to load Drebbin dataset, metaparameter train_random_forest_feature_importance to generate feature importance vector, metaparameter infer_calc_drebbin_adv to generate drebbin adversarial examples and metaparameter infer_generate_statistics to calculate statistics for the reference model. 
 
@@ -43,7 +43,7 @@ python entrypoint.py configure --metaparameters_filepath ./metaparameters.json -
 python entrypoint.py infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
 ```
 
-# Build a new container - This option is needed in case you want to submit your code to TrojAI test server to evaluate your results.
+# Build a new container - This option is needed in case you want to submit your code to TrojAI test server to evaluate your results. Set the metaparameter infer_platform to test_server.
 
 ```
 sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac.simg
