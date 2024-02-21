@@ -10,6 +10,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
 import scipy
+import sys
 import shutil
 from tqdm import tqdm
 import torch
@@ -85,15 +86,10 @@ class Detector(AbstractDetector):
             self.learned_parameters_dirpath, 
             "layer_transform.bin"
         )
-        self.infer_path_adv_examples = metaparameters['infer_path_adv_examples']
-        self.infer_path_drebbin_x_train = metaparameters['infer_path_drebbin_x_train']
-        self.infer_path_drebbin_x_test = metaparameters['infer_path_drebbin_x_test']
-        self.infer_path_drebbin_y_train = metaparameters['infer_path_drebbin_y_train']
-        self.infer_path_drebbin_y_test = metaparameters['infer_path_drebbin_y_test']
+        
         self.infer_calc_drebbin_adv = metaparameters['infer_calc_drebbin_adv']
         self.infer_grad_magnitude = metaparameters['infer_grad_magnitude']
         self.infer_save_adv_examples = metaparameters['infer_save_adv_examples']
-        self.infer_stat_output_file = metaparameters['infer_stat_output_file']
         self.infer_aug_dataset_factor = metaparameters["infer_aug_dataset_factor"]
         self.infer_aug_bin_prob = metaparameters["infer_aug_bin_prob"]
         self.infer_generate_statistics = metaparameters["infer_generate_statistics"]
@@ -104,22 +100,33 @@ class Detector(AbstractDetector):
         self.no_features_least = metaparameters["infer_no_features_least"]
         self.no_features_most = metaparameters["infer_no_features_most"]
         self.infer_extra_data_augmentation = metaparameters["infer_extra_data_augmentation"]
-        self.infer_path_poisoned_examples = metaparameters["infer_path_poisoned_examples"]
         self.train_random_forest_feature_importance = metaparameters["train_random_forest_feature_importance"]
-        self.infer_feature_importance_path = metaparameters["infer_feature_importance_path"]
         self.infer_feature_extraction_method = metaparameters["infer_feature_extraction_method"]
         self.infer_proximity_aggregation_method = metaparameters["infer_proximity_aggregation_method"]
+        # Drebbin dataset path in the container
+        self.drebbin_container_path = '/learned_parameters/models/id-00000001/cyber-apk-nov2023-vectorized-drebin'
+        # Adversarial examples dataset path in the container
+        self.infer_path_adv_examples = '/learned_parameters/models/id-00000001/save_adversarial_examples'
+        # Adversarial examples files in self.infer_path_adv_examples
+        self.infer_adv_examples_file_names = [
+            "X_modified_class01_pc0.npy",
+	        "X_modified_class10_pc0.npy",
+	        "X_modified_class01_pc1.npy", 
+	        "X_modified_class10_pc1.npy"
+        ]
+        # Statistics ouput file path in the container
+        self.infer_stat_output_file = '/learned_parameters/models/id-00000001/statistics.json'
+        self.poison_dataset_path = '/learned_parameters/models/id-00000001/poisoned_examples'
+        self.infer_feature_importance_path = '/learned_parameters/models/id-00000001/feature_importance/index_array.npy'
+
         if self.infer_platform == 'local':
             self.reference_model_dirpath = self.reference_model_dirpath[1:]
-        self.infer_adv_examples_file_names = [
-            metaparameters["infer_adv_ex_file_class01_pc0"],
-            metaparameters["infer_adv_ex_file_class10_pc0"],
-            metaparameters["infer_adv_ex_file_class01_pc1"],
-            metaparameters["infer_adv_ex_file_class10_pc1"]
-        ]
-
-        self.infer_filename_poisoned_examples = metaparameters["infer_filename_poisoned_examples"]
-
+            self.drebbin_container_path = self.drebbin_container_path[1:]
+            self.infer_path_adv_examples = self.infer_path_adv_examples[1:]
+            self.infer_stat_output_file = self.infer_stat_output_file[1:]
+            self.poison_dataset_path = self.poison_dataset_path[1:]
+            self.infer_feature_importance_path = self.infer_feature_importance_path[1:]
+        
     def write_metaparameters(self):
         metaparameters = {
             "infer_cyber_model_skew": self.model_skew["__all__"],
@@ -314,13 +321,8 @@ class Detector(AbstractDetector):
         results['no_adv_examples_01'] = len(inx_adv01)
         results['no_adv_examples_10'] = len(inx_adv10)
 
-        # Specify the file name
-        file_path = os.path.join(
-            self.reference_model_dirpath,
-            self.infer_stat_output_file
-        )
         # Writing JSON data
-        with open(file_path, 'w') as json_file:
+        with open(self.infer_stat_output_file, 'w') as json_file:
             json.dump(results, json_file, indent=4)
 
     def generate_adersarial_examples(
@@ -418,54 +420,38 @@ class Detector(AbstractDetector):
         if date_mode == 'drebinn':
 
             drebbin_np, _ = get_Drebbin_dataset(
-                self.reference_model_dirpath,
-                self.infer_path_drebbin_x_train,
-                self.infer_path_drebbin_x_test,
-                self.infer_path_drebbin_y_train,
-                self.infer_path_drebbin_y_test,
+                self.drebbin_container_path
             )
+            if drebbin_np.size == 0:
+                logging.error(f"Drebbin folder does not exist! Exiting the process!") 
+                sys.exit()  
 
         elif date_mode == 'drebinn_adversarial':
             
-            path_adv_examples = os.path.join(
-                self.reference_model_dirpath,
-                self.infer_path_adv_examples
-            )
             adv_exm_class10_pc0 = np.load(os.path.join(
-                path_adv_examples,
+                self.infer_path_adv_examples,
                 self.infer_adv_examples_file_names[1]
                 )
             )
             adv_exm_class01_pc1 = np.load(os.path.join(
-                path_adv_examples,
+                self.infer_path_adv_examples,
                 self.infer_adv_examples_file_names[3]
                 )
             )
 
         elif date_mode == 'poison':
-            print("path poison:", os.path.join(
-                self.reference_model_dirpath,
-                self.infer_path_poisoned_examples,
-                self.infer_filename_poisoned_examples
-                ))
             poison_examples = np.load(os.path.join(
-                self.reference_model_dirpath,
-                self.infer_path_poisoned_examples,
-                self.infer_filename_poisoned_examples
+                self.poison_dataset_path,
+                'poisoned_features.npy'
                 )
             )
         else:
             pass
 
         if feature_importance:
-            print("Feature importance path:", os.path.join(
-                self.reference_model_dirpath,
+
+            feature_importance_index = np.load(
                 self.infer_feature_importance_path
-                ))
-            feature_importance_index = np.load(os.path.join(
-                self.reference_model_dirpath,
-                self.infer_feature_importance_path
-                )
             )
         ##################################################################
 
@@ -795,7 +781,8 @@ class Preprocess(Detector):
         learned_parameters_dirpath,
         reference_model_dirpath,
         reference_model_origin,
-        drebbin_dataset_dirpath
+        drebbin_dataset_dirpath,
+        poison_dataset_path
         ):
         # Initialize the parent class with its parameters
         super().__init__(
@@ -803,13 +790,12 @@ class Preprocess(Detector):
             learned_parameters_dirpath,
             reference_model_dirpath,
         )
-        print("reference_model_origin:", reference_model_origin)
         self.reference_model_origin = reference_model_origin
-
+        metaparameters = json.load(open(metaparameter_filepath, "r"))
+        self.infer_drebbin_dataset_exist = metaparameters["infer_drebbin_dataset_exist"]
+        self.infer_poison_dataset_exist = metaparameters["infer_poison_dataset_exist"]
         # Copy reference model from the source to container folder
 
-        print("ss:", self.reference_model_origin)
-        print("dd:", self.reference_model_dirpath)
         if not os.path.isdir(self.reference_model_dirpath):
             try:  
                 shutil.copytree(
@@ -825,24 +811,38 @@ class Preprocess(Detector):
             logging.info(f"Reference model folder {self.reference_model_dirpath} exists! No need for files transfer!")
 
         # Copy Drebbin dataset from source to container folder
-        self.drebbin_dataset_path = join(
-            self.reference_model_dirpath,
-            drebbin_dataset_dirpath.split(os.sep)[-1]
-        )
-        if not os.path.isdir(self.drebbin_dataset_path):
-            try:  
-                shutil.copytree(
-                    drebbin_dataset_dirpath,
-                    self.drebbin_dataset_path
-                )
-                logging.info(f"Drebbin dataset copied successfully from "
-                            f"{drebbin_dataset_dirpath} to "
-                            f"{self.drebbin_dataset_path}")
-            except Exception as e:
-                logging.error(f"Error occurred while copying the folder: {e}")
+        if self.infer_drebbin_dataset_exist:
+            if not os.path.isdir(self.drebbin_container_path):
+                try:  
+                    shutil.copytree(
+                        drebbin_dataset_dirpath,
+                        self.drebbin_container_path
+                    )
+                    logging.info(f"Drebbin dataset copied successfully from "
+                                f"{drebbin_dataset_dirpath} to "
+                                f"{self.drebbin_container_path}")
+                except Exception as e:
+                    logging.error(f"Error occurred while copying the Drebbin folder: {e}")
             else:
-                logging.info(f"Drebbin Folder {self.drebbin_dataset_path} exists! No need for files transfer!")
-    
+                logging.info(f"Drebbin folder {self.drebbin_container_path} exists! No need for files transfer!")
+        
+        # Copy poisoned data
+         # Copy Drebbin dataset from source to container folder
+        if self.infer_poison_dataset_exist:
+            if not os.path.isdir(self.poison_dataset_path):
+                try:  
+                    shutil.copytree(
+                        poison_dataset_path,
+                        self.poison_dataset_path
+                    )
+                    logging.info(f"Poison dataset copied successfully from "
+                                f"{poison_dataset_path} to "
+                                f"{self.poison_dataset_path}")
+                except Exception as e:
+                    logging.error(f"Error occurred while copying the poisoned folder: {e}")
+            else:
+                logging.info(f"Poisoned folder {self.poison_dataset_path} exists! No need for files transfer!")
+
     def manual_configure(self, model_filepath: str):
         if self.infer_platform == 'local':
             model_filepath = join(model_filepath[1:], "model.pt")
@@ -855,27 +855,13 @@ class Preprocess(Detector):
         
         if self.infer_load_drebbin:
             logging.info("Loading Drebbin dataset!")
-            drebin_paths = [
-                    self.infer_path_drebbin_x_train,
-                    self.infer_path_drebbin_x_test,
-                    self.infer_path_drebbin_y_train,
-                    self.infer_path_drebbin_y_test
-            ]
-        
-            for path in drebin_paths:
-                if not os.path.isfile(join(self.reference_model_dirpath, path)):
-                    logging.info(f"Drebbin folder does not exist! Nothing to do")
-                    self.drebbin_exist = False       
-                    return 
-            self.drebbin_exist = True
 
             self.inputs_np, self.labels_np = get_Drebbin_dataset(
-                self.reference_model_dirpath,
-                self.infer_path_drebbin_x_train,
-                self.infer_path_drebbin_x_test,
-                self.infer_path_drebbin_y_train,
-                self.infer_path_drebbin_y_test,
+                self.drebbin_container_path
             )
+            if self.inputs_np.size == 0 or self.labels_np.size == 0:
+                logging.info(f"Drebbin folder does not exist! Exiting the process!") 
+                sys.exit()    
 
 
     def feature_importance_calc(self):
@@ -886,14 +872,15 @@ class Preprocess(Detector):
                     "Set load_drebbin to True to generate statistics!"
                 )
                 raise Exception(msg)
-            file_path = os.path.join(
-                self.reference_model_dirpath,
+            
+            if not os.path.isdir(os.path.split(self.infer_feature_importance_path)[0]):
+                os.mkdir(os.path.split(self.infer_feature_importance_path)[0])
+
+            get_important_features(
+                self.inputs_np, 
+                self.labels_np, 
                 self.infer_feature_importance_path
             )
-            if not os.path.isdir(os.path.split(file_path)[0]):
-                os.mkdir(os.path.split(file_path)[0])
-
-            get_important_features(self.inputs_np, self.labels_np, file_path)
 
     def generate_statistics(self, model_filepath):
         model, _, _ = load_model(model_filepath)
@@ -926,7 +913,6 @@ class Preprocess(Detector):
             if self.infer_save_adv_examples:
                 save_adversarial_examples_binarry_classifier(
                     os.path.join(
-                        self.reference_model_dirpath,
                         self.infer_path_adv_examples,
                     ),
                     list_adversarial_ex,

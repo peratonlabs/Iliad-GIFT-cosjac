@@ -23,6 +23,20 @@ Here are the existing tested combinations.
 4. pip install --upgrade pip
 5. pip install tqdm jsonschema jsonargparse scikit-learn shap matplotlib
 
+# Code description
+
+Two pipelines configure and infer are implemented. The configure prepares the dependencies whereas infer runs the poison model detector. 
+
+# Run configure outside of Singularity container
+
+The configure mode must be run first with a minimum setup. It will copy the reference model to the container. The repository contains a reference model at models/id-00000001/. 
+
+python entrypoint.py configure --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json  --learned_parameters_dirpath ./learned_parameters/ --drebbin_dataset_dirpath
+
+At full capacity, it copies Drebbin and Poison datasets to the container, calculates features importance for a surrogate random forest model, generates adversarial examples and compute statistics for the reference model. It requires the existance of the Drebbin and Poison datasets which are not available in the repository. To process these datasets metaparameters infer_drebbin_dataset_exist and infer_poison_dataset_exist must be set to true. Set also to true metaparameter infer_load_drebbin to load Drebbin dataset, metaparameter train_random_forest_feature_importance to generate feature importance vector, metaparameter infer_calc_drebbin_adv to generate drebbin adversarial examples and metaparameter infer_generate_statistics to calculate statistics for the reference model. 
+
+python entrypoint.py configure --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json  --learned_parameters_dirpath ./learned_parameters/ --drebbin_dataset_dirpath ~/cyber-apk-nov2023-vectorized-drebin --poison_dataset_path ~/poison_data/
+
 # Run inference outside of Singularity container
 
 ```
@@ -32,7 +46,7 @@ python entrypoint.py infer --model_filepath ./models/id-00000001/model.pt --resu
 # Build a new container - This option is needed in case you want to submit your code to TrojAI test server to evaluate your results.
 
 ```
-sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac.simg example_trojan_detector.def
+sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac.simg
 ```
 
 # Container usage: Inferencing Mode - This option is needed in case you want to submit your code to TrojAI test server to evaluate your results.
@@ -62,7 +76,7 @@ singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath 
    h. Advanced Config: Say 'No' to advanced config.
    i. Auto-Config:  Select Yes.
    j. Copy the URL provided by rclone into a web browser.
-   k. Log into your Google account - perspecta.gift@gmail.com
+   k. Log into your Google account - user@gmail.com
    l. Go back to the SSH window – Finish configuration by selecting No to google team or so.
    m. Test API connection with google drive
    	i.  rclone ls gdrive:
@@ -89,6 +103,10 @@ The detector compares the exctracted features by using one of the following prox
 The detector will work on a three samples dataset provided in models/id-00000001/clean-example-data/. By default the option infer_random_noise_augmentation is set to true in the metaparameters.json and together with the metaparameter infer_aug_dataset_factor expand the three samples dataset by applying random binary perturbations. 
 
 # Extra data augmentation methods require datasets that are not available in the repository but could be released by TrojAI organizers. 
+
+The configure mode is required to generate feature importance dependencies and adversarial examples for Drebbin dataset and a reference model given at learned_parameters/models/id-00000001.   
+
+python entrypoint.py configure --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json  --learned_parameters_dirpath ./learned_parameters/ --drebbin_dataset_dirpath ~/cyber-apk-nov2023-vectorized-drebin
 
 ## Running detector with Drebbin dataset
 

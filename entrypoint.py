@@ -51,7 +51,8 @@ def configure_mode(args):
         args.learned_parameters_dirpath,
         args.reference_model_path,
         args.reference_model_origin,
-        args.drebbin_dataset_dirpath
+        args.drebbin_dataset_dirpath,
+        args.poison_dataset_path
     )
 
     logging.info("Calling configuration mode")
@@ -176,7 +177,8 @@ def add_configure_subparser_arguments(subparser):
     "--drebbin_dataset_dirpath",
     type=str,
     help="Local system full path to drebbin_dataset_dirpath",
-    required=True,
+    default='~/cyber-apk-nov2023-vectorized-drebin',
+    required=False
     )
     subparser.add_argument(
     "--reference_model_path",
@@ -185,7 +187,13 @@ def add_configure_subparser_arguments(subparser):
     default="/learned_parameters/models/id-00000001",
     required=False,
     )
-
+    subparser.add_argument(
+    "--poison_dataset_path",
+    type=str,
+    help="Local system full path to drebbin_dataset_dirpath",
+    default='~/poison_data',
+    required=False
+    )
 if __name__ == "__main__":
 
     temp_parser = ArgumentParser(add_help=False)
