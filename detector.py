@@ -56,6 +56,7 @@ class Detector(AbstractDetector):
         metaparameter_filepath,
         learned_parameters_dirpath,
         reference_model_dirpath
+        
     ):
         """Detector initialization function.
 
@@ -159,9 +160,7 @@ class Detector(AbstractDetector):
         Args:
             models_dirpath: str - Path to the list of model to use for training
         """
-        for random_seed in np.random.randint(1000, 9999, 10):
-            self.weight_table_params["random_seed"] = random_seed
-            self.manual_configure(models_dirpath)
+        pass
 
     def manual_configure(self, models_dirpath: str):
         """Configuration of the detector using the parameters from 
@@ -175,10 +174,12 @@ class Detector(AbstractDetector):
             makedirs(self.learned_parameters_dirpath)
 
         # List all available model
+        print("models_dirpath:", models_dirpath)
         model_path_list = [
             join(models_dirpath, model)
             for model in listdir(models_dirpath)
         ]
+        print("model_path_list:", model_path_list)
         model_path_list = sorted(model_path_list)
         logging.info(f"Loading {len(model_path_list)} models...")
         (model_repr_dict, 
@@ -195,63 +196,6 @@ class Detector(AbstractDetector):
                     model_class,
                     models_padding_dict
                 )
-
-        check_models_consistency(model_repr_dict)
-
-        # Build model layer map to know how to flatten
-        logging.info("Generating model layer map...")
-        model_layer_map = create_layer_map(model_repr_dict)
-        with open(self.model_layer_map_filepath, "wb") as fp:
-            pickle.dump(model_layer_map, fp)
-        logging.info("Generated model layer map. Flattenning models...")
-
-        # Flatten models
-        flat_models = flatten_models(model_repr_dict, model_layer_map)
-        del model_repr_dict
-        logging.info("Models flattened. Fitting feature reduction...")
-
-        layer_transform = fit_feature_reduction_algorithm(
-            flat_models,
-            self.weight_table_params,
-            self.input_features
-        )
-
-        logging.info("Feature reduction applied. Creating feature file...")
-        X = None
-        y = []
-
-        for _ in range(len(flat_models)):
-            (model_arch, models) = flat_models.popitem()
-            model_index = 0
-
-            logging.info("Parsing %s models...", model_arch)
-            for _ in tqdm(range(len(models))):
-                model = models.pop(0)
-                y.append(model_ground_truth_dict[model_arch][model_index])
-                model_index += 1
-
-                model_feats = use_feature_reduction_algorithm(
-                    layer_transform[model_arch], model
-                )
-                if X is None:
-                    X = model_feats
-                    continue
-
-                X = np.vstack((X, model_feats * self.model_skew["__all__"]))
-
-        logging.info("Training RandomForestRegressor model...")
-        model = RandomForestRegressor(
-            **self.random_forest_kwargs,
-            random_state=0
-        )
-        model.fit(X, y)
-
-        logging.info("Saving RandomForestRegressor model...")
-        with open(self.model_filepath, "wb") as fp:
-            pickle.dump(model, fp)
-
-        self.write_metaparameters()
-        logging.info("Configuration done!")
 
     def grab_inputs(self, examples_dirpath):
         inputs_np = None
@@ -487,7 +431,6 @@ class Detector(AbstractDetector):
                 self.reference_model_dirpath,
                 self.infer_path_adv_examples
             )
-            print("path_adv_examples:", path_adv_examples)
             adv_exm_class10_pc0 = np.load(os.path.join(
                 path_adv_examples,
                 self.infer_adv_examples_file_names[1]
@@ -852,7 +795,6 @@ class Preprocess(Detector):
         learned_parameters_dirpath,
         reference_model_dirpath,
         reference_model_origin,
-        reference_model_destination_folder,
         drebbin_dataset_dirpath
         ):
         # Initialize the parent class with its parameters
@@ -861,40 +803,30 @@ class Preprocess(Detector):
             learned_parameters_dirpath,
             reference_model_dirpath,
         )
-        
+        print("reference_model_origin:", reference_model_origin)
         self.reference_model_origin = reference_model_origin
 
-        # Copy reference model to learned_parameters folder
-        if self.infer_platform == 'local':
-            reference_model_destination_folder = reference_model_destination_folder[1:]
+        # Copy reference model from the source to container folder
 
-        self.reference_model_destination_folder = reference_model_destination_folder
-
-        root_reference_model_origin = reference_model_origin.split(os.sep)[0]
-        reference_model_destination_folder = join(
-            reference_model_destination_folder,
-            root_reference_model_origin
-        )
-
-        if not os.path.isdir(reference_model_destination_folder):
-
+        print("ss:", self.reference_model_origin)
+        print("dd:", self.reference_model_dirpath)
+        if not os.path.isdir(self.reference_model_dirpath):
             try:  
                 shutil.copytree(
-                    root_reference_model_origin,
-                    reference_model_destination_folder
-                    )
-                logging.info(f"Folder copied successfully from "
-                        f"{root_reference_model_origin} to "
-                        f"{reference_model_destination_folder}")
+                    self.reference_model_origin,
+                    self.reference_model_dirpath
+                )
+                logging.info(f"Reference model copied successfully from "
+                        f"{self.reference_model_origin} to "
+                        f"{self.reference_model_dirpath}")
             except Exception as e:
                 logging.error(f"Error occurred while copying the folder: {e}")
         else:
-            logging.info(f"Reference model folder {reference_model_destination_folder} exists! No need for files transfer!")
+            logging.info(f"Reference model folder {self.reference_model_dirpath} exists! No need for files transfer!")
 
-        # Copy Drebbin dataset to learned_parameters
+        # Copy Drebbin dataset from source to container folder
         self.drebbin_dataset_path = join(
-            self.reference_model_destination_folder,
-            self.reference_model_origin,
+            self.reference_model_dirpath,
             drebbin_dataset_dirpath.split(os.sep)[-1]
         )
         if not os.path.isdir(self.drebbin_dataset_path):
@@ -903,43 +835,52 @@ class Preprocess(Detector):
                     drebbin_dataset_dirpath,
                     self.drebbin_dataset_path
                 )
-                logging.info(f"Folder copied successfully from "
+                logging.info(f"Drebbin dataset copied successfully from "
                             f"{drebbin_dataset_dirpath} to "
                             f"{self.drebbin_dataset_path}")
             except Exception as e:
                 logging.error(f"Error occurred while copying the folder: {e}")
             else:
                 logging.info(f"Drebbin Folder {self.drebbin_dataset_path} exists! No need for files transfer!")
-
-
+    
+    def manual_configure(self, model_filepath: str):
+        if self.infer_platform == 'local':
+            model_filepath = join(model_filepath[1:], "model.pt")
+        self.load_drebbin()
+        self.feature_importance_calc()
+        self.generate_statistics(model_filepath)
+        self.get_adversarial_examples(model_filepath)
         
     def load_drebbin(self):
         
-        drebin_paths = [
+        if self.infer_load_drebbin:
+            logging.info("Loading Drebbin dataset!")
+            drebin_paths = [
+                    self.infer_path_drebbin_x_train,
+                    self.infer_path_drebbin_x_test,
+                    self.infer_path_drebbin_y_train,
+                    self.infer_path_drebbin_y_test
+            ]
+        
+            for path in drebin_paths:
+                if not os.path.isfile(join(self.reference_model_dirpath, path)):
+                    logging.info(f"Drebbin folder does not exist! Nothing to do")
+                    self.drebbin_exist = False       
+                    return 
+            self.drebbin_exist = True
+
+            self.inputs_np, self.labels_np = get_Drebbin_dataset(
+                self.reference_model_dirpath,
                 self.infer_path_drebbin_x_train,
                 self.infer_path_drebbin_x_test,
                 self.infer_path_drebbin_y_train,
-                self.infer_path_drebbin_y_test
-        ]
-       
-        for path in drebin_paths:
-            if not os.path.isfile(join(self.reference_model_dirpath, path)):
-                logging.info(f"Drebbin folder does not exist! Nothing to do")
-                self.drebbin_exist = False       
-                return 
-        self.drebbin_exist = True
-
-        self.inputs_np, self.labels_np = get_Drebbin_dataset(
-            self.reference_model_dirpath,
-            self.infer_path_drebbin_x_train,
-            self.infer_path_drebbin_x_test,
-            self.infer_path_drebbin_y_train,
-            self.infer_path_drebbin_y_test,
-        )
+                self.infer_path_drebbin_y_test,
+            )
 
 
     def feature_importance_calc(self):
         if self.train_random_forest_feature_importance:
+            logging.info("Training random forest model for feature importance!")
             if not self.infer_load_drebbin:
                 msg = (
                     "Set load_drebbin to True to generate statistics!"
@@ -950,24 +891,25 @@ class Preprocess(Detector):
                 self.infer_feature_importance_path
             )
             if not os.path.isdir(os.path.split(file_path)[0]):
-                print(f"Folder {os.path.split(file_path)[0]} does not exist!!!")
                 os.mkdir(os.path.split(file_path)[0])
 
-             
             get_important_features(self.inputs_np, self.labels_np, file_path)
 
     def generate_statistics(self, model_filepath):
         model, _, _ = load_model(model_filepath)
         if self.infer_generate_statistics:
+            logging.info("Generating statistics!")
             if not self.infer_load_drebbin:
                 msg = (
                     "Set load_drebbin to True to generate statistics!"
                 )
                 raise Exception(msg)
+            
             self.generate_statistics_datasets(model, self.inputs_np, self.labels_np)   
 
 
     def get_adversarial_examples(self, model_filepath):
+        model_filepath = join(model_filepath)
         model, _, _ = load_model(model_filepath)
         if self.infer_calc_drebbin_adv:
             if not self.infer_load_drebbin:
@@ -975,7 +917,7 @@ class Preprocess(Detector):
                     "Set infer_load_drebbin to true to calculate adv samples for Drebbin!"
                 )
                 raise Exception(msg)
-
+            logging.info("Calculating adversarial examples!")
             list_adversarial_ex = self.generate_adersarial_examples(
                 model,
                 self.inputs_np

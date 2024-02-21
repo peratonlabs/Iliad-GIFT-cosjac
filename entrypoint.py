@@ -25,26 +25,7 @@ def test_schema(metaparameters_filepath: str, scheme_filepath: str):
         schema_json = json.load(schema_file)
 
     # Throws a fairly descriptive error if validation fails.
-    jsonschema.validate(instance=config_json, schema=schema_json)
-
-def preprocessing_mode(args):
-    
-    test_schema(args.metaparameters_filepath, args.schema_filepath)
-    print("args.drebbin_dataset_dirpath:", args.drebbin_dataset_dirpath)
-
-    preproc = Preprocess(
-        args.metaparameters_filepath,
-        args.learned_parameters_dirpath,
-        os.path.join(args.reference_model_destination_folder, args.reference_model_origin),
-        args.reference_model_origin,
-        args.reference_model_destination_folder,
-        args.drebbin_dataset_dirpath
-    )
-    preproc.load_drebbin()
-    preproc.feature_importance_calc()
-    preproc.generate_statistics(args.model_filepath)
-    preproc.get_adversarial_examples(args.model_filepath)
-    
+    jsonschema.validate(instance=config_json, schema=schema_json)    
 
 def inference_mode(args):
     
@@ -55,28 +36,31 @@ def inference_mode(args):
     detector = Detector(
         args.metaparameters_filepath,
         args.learned_parameters_dirpath,
-        os.path.join(args.reference_model_destination_folder, args.reference_model_origin)
+        args.reference_model_path
     )
 
     logging.info("Calling the trojan detector")
     detector.infer(args.model_filepath, args.result_filepath, args.scratch_dirpath, args.examples_dirpath, args.round_training_dataset_dirpath)
+
 def configure_mode(args):
     # Validate config file against schema
-    with open(args.metaparameters_filepath) as config_file:
-        config_json = json.load(config_file)
-    with open(args.schema_filepath) as schema_file:
-        schema_json = json.load(schema_file)
-
-    # Throws a fairly descriptive error if validation fails.
-    jsonschema.validate(instance=config_json, schema=schema_json)
-
+    test_schema(args.metaparameters_filepath, args.schema_filepath)
     # Create the detector instance and loads the metaparameters.
-    detector = Detector(args.metaparameters_filepath, args.learned_parameters_dirpath)
+    preproc = Preprocess(
+        args.metaparameters_filepath,
+        args.learned_parameters_dirpath,
+        args.reference_model_path,
+        args.reference_model_origin,
+        args.drebbin_dataset_dirpath
+    )
 
     logging.info("Calling configuration mode")
-    detector.configure(args.configure_models_dirpath, args.automatic_configuration)
+    preproc.configure(
+        args.reference_model_path, 
+        args.automatic_configuration
+    )
 
-def add_shared_arguments(subparser):
+def add_infer_subparser_arguments(subparser):
     subparser.add_argument(
     "--model_filepath",
     type=str,
@@ -139,21 +123,68 @@ def add_shared_arguments(subparser):
     subparser.add_argument(
     "--reference_model_origin",
     type=str,
+    help="Path to the reference clean model source",
+    default="models/id-00000001/",
+    required=False,
+    )
+    subparser.add_argument(
+    "--reference_model_path",
+    type=str,
+    help="Path to the reference clean model in the container",
+    default="/learned_parameters/models/id-00000001",
+    required=False,
+    )
+    
+    subparser.add_argument("--source_dataset_dirpath", type=str)
+
+def add_configure_subparser_arguments(subparser):
+
+    subparser.add_argument(
+        "--metaparameters_filepath",
+        help="Path to JSON file containing values of tunable paramaters to be used "
+        "when evaluating models.",
+        type=str,
+        required=True,
+    )
+    subparser.add_argument(
+        "--schema_filepath",
+        type=str,
+        help="Path to a schema file in JSON Schema format against which to validate "
+        "the config file.",
+        required=True,
+    )
+    subparser.add_argument(
+        "--learned_parameters_dirpath",
+        type=str,
+        help="Path to a directory containing parameter data (model weights, etc.) and "
+        "dependencies.",
+        required=True,
+    )
+    subparser.add_argument(
+        '--automatic_configuration',
+        help='Whether to enable automatic training or not, which will retrain the detector across multiple variables',
+        action='store_true',
+    )
+    subparser.add_argument(
+    "--reference_model_origin",
+    type=str,
     help="Path to the reference clean model",
     default="models/id-00000001/",
     required=False,
     )
-
     subparser.add_argument(
-    "--reference_model_destination_folder",
+    "--drebbin_dataset_dirpath",
     type=str,
-    help="Destination folder for the reference clean model.",
-    default="/learned_parameters",
+    help="Local system full path to drebbin_dataset_dirpath",
+    required=True,
+    )
+    subparser.add_argument(
+    "--reference_model_path",
+    type=str,
+    help="Path to the reference clean model in the container",
+    default="/learned_parameters/models/id-00000001",
     required=False,
     )
-
-    subparser.add_argument("--source_dataset_dirpath", type=str)
-
 
 if __name__ == "__main__":
 
@@ -167,73 +198,12 @@ if __name__ == "__main__":
     parser.set_defaults(func=lambda args: parser.print_help())
     subparser = parser.add_subparsers(dest='cmd', required=True)
     inf_parser = subparser.add_parser('infer', help='Execute container in inference mode for TrojAI detection.')
-    add_shared_arguments(inf_parser)
+    add_infer_subparser_arguments(inf_parser)
     inf_parser.set_defaults(func=inference_mode)
     
     configure_parser = subparser.add_parser('configure', help='Execute container in configuration mode for TrojAI detection. This will produce a new set of learned parameters to be used in inference mode.')
-
-    configure_parser.add_argument(
-        "--scratch_dirpath",
-        type=str,
-        help="File path to the folder where scratch disk space exists. This folder will "
-        "be empty at execution start and will be deleted at completion of "
-        "execution.",
-        required=True
-    )
-
-    configure_parser.add_argument(
-        "--configure_models_dirpath",
-        type=str,
-        help="Path to a directory containing models to use when in configure mode.",
-        required=True,
-    )
-
-    configure_parser.add_argument(
-        "--metaparameters_filepath",
-        help="Path to JSON file containing values of tunable paramaters to be used "
-        "when evaluating models.",
-        type=str,
-        required=True,
-    )
-
-    configure_parser.add_argument(
-        "--schema_filepath",
-        type=str,
-        help="Path to a schema file in JSON Schema format against which to validate "
-        "the config file.",
-        required=True,
-    )
-
-    configure_parser.add_argument(
-        "--learned_parameters_dirpath",
-        type=str,
-        help="Path to a directory containing parameter data (model weights, etc.) to "
-        "be used when evaluating models.  If --configure_mode is set, these will "
-        "instead be overwritten with the newly-configured parameters.",
-        required=True,
-    )
-
-    configure_parser.add_argument(
-        '--automatic_configuration',
-        help='Whether to enable automatic training or not, which will retrain the detector across multiple variables',
-        action='store_true',
-    )
-
+    add_configure_subparser_arguments(configure_parser)
     configure_parser.set_defaults(func=configure_mode)
-
-    # Create the 'preprocess' subparser  
-    preprocess_parser = subparser.add_parser('preprocess', help='Preprocess data for TrojAI detection.')
-    preprocess_parser.add_argument(
-    "--drebbin_dataset_dirpath",
-    type=str,
-    help="Local system full path to drebbin_dataset_dirpath",
-    required=True,
-    )
-    "/home/rstefanescu/cyber-apk-nov2023-vectorized-drebin",
-    # Define a function to add the shared option
-    ##################3
-    add_shared_arguments(preprocess_parser)
-    preprocess_parser.set_defaults(func=preprocessing_mode)
 
     logging.basicConfig(
             level=logging.INFO,
