@@ -50,19 +50,25 @@ python entrypoint.py configure --metaparameters_filepath ./metaparameters.json -
 python entrypoint.py infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
 ```
 
-# Build a new container - This option is needed in case you want to submit your code to TrojAI test server to evaluate your results. Set the metaparameter infer_platform to test_server.
+# Build a new container
+
+This option is needed in case you want to submit your code to TrojAI test server to evaluate your results. Set the metaparameter infer_platform to test_server.
 
 ```
 sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac_public.simg
 ```
 
-# Container usage: Inferencing Mode - This option is needed in case you want to submit your code to TrojAI test server to evaluate your results. 
+# Container usage: Inferencing Mode 
+
+This option is needed in case you want to submit your code to TrojAI test server to evaluate your results. 
 
 ```
 singularity run --nv ./cyber-apk-nov2023_sts_cosjac_public.simg infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
 ```
 
-# Remote terminal to access google drive via API - Setup rclone to interface with google drive from remote terminal (for uploading containter to the TrojAI test server) 
+# Remote terminal to access google drive via API 
+
+Setup rclone to interface with google drive from remote terminal (for uploading containter to the TrojAI test server). 
 
 1. Set Up an SSH Tunnel With PuTTY
    a. Hostname – username@ml-9 
@@ -91,9 +97,9 @@ singularity run --nv ./cyber-apk-nov2023_sts_cosjac_public.simg infer --model_fi
 
    Complete description available at - https://www.youtube.com/watch?v=n7yB1x2vhKw
 
-# Run probability scores for all test models locally - This is useful when multiple test models are evaluated using our detector.
+# Run probability scores for all test models locally 
 
-Access to a collection of models is needed. Set up the path for the test models in --test_models_path. Don't forget to set the metaparameter infer_platform to local since it can only run on the local system. With the current setup, the system must have two GPUs. The distributed implementation requires locals tunning for no_available_GPUs and max_workers (number of threads). 
+This is useful when multiple test models are evaluated using our detector. Access to a collection of models is needed. Set up the path for the test models in --test_models_path. Don't forget to set the metaparameter infer_platform to local since it can only run on the local system. With the current setup, the system must have two GPUs. The distributed implementation requires locals tunning for no_available_GPUs and max_workers (number of threads). 
 
 python run_all_models.py --test_models_path ~/cyber-apk-nov2023-train-rev2/models/ --metadata_path ~/cyber-apk-nov2023-train-rev2/METADATA.csv --dictionary_path ~/r17/scratch/ --pandas_path ~/r17/scratch/output.csv
 
