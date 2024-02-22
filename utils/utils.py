@@ -447,7 +447,7 @@ def scale_probability(outcome: float, method: str) -> str:
     if method in ["MSEavg", "MAEavg"]:
         outcome = outcome/1000
     if method == 'adversarial_examples':
-        outcome = 1 - outcome/10000
+        outcome = outcome/10000
     probability = np.clip(outcome, 1e-5, 0.99999)
     return str(probability)
 

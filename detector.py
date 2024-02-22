@@ -181,7 +181,6 @@ class Detector(AbstractDetector):
             makedirs(self.learned_parameters_dirpath)
 
         # List all available model
-        print("models_dirpath:", models_dirpath)
         model_path_list = [
             join(models_dirpath, model)
             for model in listdir(models_dirpath)
@@ -523,6 +522,7 @@ class Detector(AbstractDetector):
                     "augmentation option!"
                 )
                 raise Exception(msg)
+            
             test_features = get_shapley_values(model.model, [X], [X])   
             ref_features = get_shapley_values(reference_model.model, [X], [X])
 
@@ -795,7 +795,7 @@ class Preprocess(Detector):
         self.infer_drebbin_dataset_exist = metaparameters["infer_drebbin_dataset_exist"]
         self.infer_poison_dataset_exist = metaparameters["infer_poison_dataset_exist"]
         # Copy reference model from the source to container folder
-
+        
         if not os.path.isdir(self.reference_model_dirpath):
             try:  
                 shutil.copytree(
@@ -853,15 +853,14 @@ class Preprocess(Detector):
         
     def load_drebbin(self):
         
-        if self.infer_load_drebbin:
-            logging.info("Loading Drebbin dataset!")
+        logging.info("Loading Drebbin dataset!")
 
-            self.inputs_np, self.labels_np = get_Drebbin_dataset(
-                self.drebbin_container_path
-            )
-            if self.inputs_np.size == 0 or self.labels_np.size == 0:
-                logging.info(f"Drebbin folder does not exist! Exiting the process!") 
-                sys.exit()    
+        self.inputs_np, self.labels_np = get_Drebbin_dataset(
+            self.drebbin_container_path
+        )
+        if self.inputs_np.size == 0 or self.labels_np.size == 0:
+            logging.info(f"Drebbin folder does not exist! Exiting the process!")
+            sys.exit()    
 
 
     def feature_importance_calc(self):

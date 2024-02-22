@@ -23,21 +23,27 @@ Here are the existing tested combinations.
 4. pip install --upgrade pip
 5. pip install tqdm jsonschema jsonargparse scikit-learn shap matplotlib
 
-# Code description
+# Running the code 
 
-Two pipelines configure and infer are implemented. The configure prepares the dependencies whereas infer runs the poison model detector. 
+Two pipelines configure and infer are implemented. The configure prepares the dependencies whereas infer runs the poison model detector. The default configuration outside of Singularity container can be run as described below.
 
-# Run configure outside of Singularity container
+(1) python entrypoint.py configure --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json  --learned_parameters_dirpath ./learned_parameters/ 
+
+
+(2) python entrypoint.py infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
+
+
+# (1) Run configure outside of Singularity container
 
 The configure mode must be run first with a minimum setup. It will copy the reference model to the container. The repository contains a reference model at models/id-00000001/. 
 
 python entrypoint.py configure --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json  --learned_parameters_dirpath ./learned_parameters/ 
 
-At full capacity, it copies Drebbin and Poison datasets to the container, calculates features importance for a surrogate random forest model, generates adversarial examples and compute statistics for the reference model. It requires the existance of the Drebbin and Poison datasets which are not available in the repository. To process these datasets metaparameters infer_drebbin_dataset_exist and infer_poison_dataset_exist must be set to true. Set also to true metaparameter infer_load_drebbin to load Drebbin dataset, metaparameter train_random_forest_feature_importance to generate feature importance vector, metaparameter infer_calc_drebbin_adv to generate drebbin adversarial examples and metaparameter infer_generate_statistics to calculate statistics for the reference model. 
+At full capacity, it copies Drebbin and Poison datasets to the container, calculates features importance for a surrogate random forest model, generates adversarial examples and compute statistics for the reference model. It requires the existance of the Drebbin and Poison datasets which are not available in the repository. To process these datasets metaparameters infer_drebbin_dataset_exist and infer_poison_dataset_exist must be set to true. Set also to true metaparameter train_random_forest_feature_importance to generate feature importance vector, metaparameter infer_calc_drebbin_adv to generate drebbin adversarial examples and metaparameter infer_generate_statistics to calculate statistics for the reference model. 
 
 python entrypoint.py configure --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json  --learned_parameters_dirpath ./learned_parameters/ --drebbin_dataset_dirpath ~/cyber-apk-nov2023-vectorized-drebin --poison_dataset_path ~/poison_data/
 
-# Run inference outside of Singularity container
+# (2) Run inference outside of Singularity container
 
 ```
 python entrypoint.py infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
@@ -46,7 +52,7 @@ python entrypoint.py infer --model_filepath ./models/id-00000001/model.pt --resu
 # Build a new container - This option is needed in case you want to submit your code to TrojAI test server to evaluate your results. Set the metaparameter infer_platform to test_server.
 
 ```
-sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac.simg
+sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac_public.simg
 ```
 
 # Container usage: Inferencing Mode - This option is needed in case you want to submit your code to TrojAI test server to evaluate your results.
