@@ -93,7 +93,6 @@ class Detector(AbstractDetector):
         self.infer_aug_dataset_factor = metaparameters["infer_aug_dataset_factor"]
         self.infer_aug_bin_prob = metaparameters["infer_aug_bin_prob"]
         self.infer_generate_statistics = metaparameters["infer_generate_statistics"]
-        self.infer_load_drebbin = metaparameters["infer_load_drebbin"]
         self.infer_platform = metaparameters["infer_platform"]
         self.feature_importance = metaparameters["infer_feature_importance"]
         self.random_noise_augmentation = metaparameters["infer_random_noise_augmentation"]
@@ -381,7 +380,7 @@ class Detector(AbstractDetector):
         test_samples_path: str,
         feature_importance: bool = True,
         random_noise_augmentation: bool = True,
-        date_mode: str = 'drebinn'
+        date_mode: str = 'None'
     ):
 
         """ Calculates probability that model is poisoned using different
@@ -422,8 +421,8 @@ class Detector(AbstractDetector):
                 self.drebbin_container_path
             )
             if drebbin_np.size == 0:
-                logging.error(f"Drebbin folder does not exist! Exiting the process!") 
-                sys.exit()  
+                logging.error(f"Drebbin set does not exist! Nothing to do!") 
+                sys.exit()
 
         elif date_mode == 'drebinn_adversarial':
             
@@ -811,6 +810,8 @@ class Preprocess(Detector):
             logging.info(f"Reference model folder {self.reference_model_dirpath} exists! No need for files transfer!")
 
         # Copy Drebbin dataset from source to container folder
+        print("drebbin_dataset_dirpath:", drebbin_dataset_dirpath)
+        print("self.drebbin_container_path:", self.drebbin_container_path)
         if self.infer_drebbin_dataset_exist:
             if not os.path.isdir(self.drebbin_container_path):
                 try:  
@@ -846,20 +847,23 @@ class Preprocess(Detector):
     def manual_configure(self, model_filepath: str):
         if self.infer_platform == 'local':
             model_filepath = join(model_filepath[1:], "model.pt")
-        self.load_drebbin()
-        self.feature_importance_calc()
-        self.generate_statistics(model_filepath)
-        self.get_adversarial_examples(model_filepath)
-        
+        if self.infer_poison_dataset_exist:
+            self.load_drebbin()
+            self.feature_importance_calc()
+            self.generate_statistics(model_filepath)
+            self.get_adversarial_examples(model_filepath)
+        else:
+            logging.info("Nothing to do since Drebbin set is not available!")
+
     def load_drebbin(self):
-        
+
         logging.info("Loading Drebbin dataset!")
 
         self.inputs_np, self.labels_np = get_Drebbin_dataset(
             self.drebbin_container_path
         )
         if self.inputs_np.size == 0 or self.labels_np.size == 0:
-            logging.info(f"Drebbin folder does not exist! Exiting the process!")
+            logging.info(f"Drebbin Dataset does not exist! Exiting the process!")
             sys.exit()    
 
 
