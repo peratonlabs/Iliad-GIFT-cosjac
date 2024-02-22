@@ -866,11 +866,6 @@ class Preprocess(Detector):
     def feature_importance_calc(self):
         if self.train_random_forest_feature_importance:
             logging.info("Training random forest model for feature importance!")
-            if not self.infer_load_drebbin:
-                msg = (
-                    "Set load_drebbin to True to generate statistics!"
-                )
-                raise Exception(msg)
             
             if not os.path.isdir(os.path.split(self.infer_feature_importance_path)[0]):
                 os.mkdir(os.path.split(self.infer_feature_importance_path)[0])
@@ -885,11 +880,6 @@ class Preprocess(Detector):
         model, _, _ = load_model(model_filepath)
         if self.infer_generate_statistics:
             logging.info("Generating statistics!")
-            if not self.infer_load_drebbin:
-                msg = (
-                    "Set load_drebbin to True to generate statistics!"
-                )
-                raise Exception(msg)
             
             self.generate_statistics_datasets(model, self.inputs_np, self.labels_np)   
 
@@ -898,11 +888,6 @@ class Preprocess(Detector):
         model_filepath = join(model_filepath)
         model, _, _ = load_model(model_filepath)
         if self.infer_calc_drebbin_adv:
-            if not self.infer_load_drebbin:
-                msg = (
-                    "Set infer_load_drebbin to true to calculate adv samples for Drebbin!"
-                )
-                raise Exception(msg)
             logging.info("Calculating adversarial examples!")
             list_adversarial_ex = self.generate_adersarial_examples(
                 model,
