@@ -5,10 +5,13 @@ import pickle
 from os import listdir, makedirs
 from os.path import join, exists, basename
 import numpy as np
+from pathlib import Path
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
 import scipy
+import sys
+import shutil
 from tqdm import tqdm
 import torch
 import utils.utils
@@ -20,6 +23,7 @@ from utils.utils import (
     get_Drebbin_dataset,
     get_discrete_derivative_inputs,
     get_flipped_samples_indices,
+    get_important_features,
     get_jac,
     get_discrete_derivatives,
     get_model_name,
@@ -35,17 +39,26 @@ from utils.abstract import AbstractDetector
 from utils.drebinnn import DrebinNN
 from utils.flatten import flatten_model, flatten_models
 from utils.healthchecks import check_models_consistency
-from utils.models import create_layer_map, load_model, \
-    load_models_dirpath
+from utils.models import (
+    create_layer_map,
+    load_model,
+    load_models_dirpath,
+    build_random_forest_classifier
+)
 from utils.padding import create_models_padding, pad_model
 from utils.reduction import (
     fit_feature_reduction_algorithm,
     use_feature_reduction_algorithm,
 )
-
-
+        
 class Detector(AbstractDetector):
-    def __init__(self, metaparameter_filepath, learned_parameters_dirpath):
+    def __init__(
+        self,
+        metaparameter_filepath,
+        learned_parameters_dirpath,
+        reference_model_dirpath
+        
+    ):
         """Detector initialization function.
 
         Args:
@@ -58,6 +71,7 @@ class Detector(AbstractDetector):
 
         self.metaparameter_filepath = metaparameter_filepath
         self.learned_parameters_dirpath = learned_parameters_dirpath
+        self.reference_model_dirpath = reference_model_dirpath
         self.model_filepath = join(self.learned_parameters_dirpath, 
                                    "model.bin")
         self.models_padding_dict_filepath = join(
@@ -72,64 +86,46 @@ class Detector(AbstractDetector):
             self.learned_parameters_dirpath, 
             "layer_transform.bin"
         )
-
-        # TODO: Update skew parameters per round
-        self.model_skew = {
-            "__all__": metaparameters["infer_cyber_model_skew"],
-        }
-
-        self.input_features = metaparameters["train_input_features"]
-        self.weight_table_params = {
-            "random_seed": metaparameters["train_weight_table_random_state"],
-            "mean": metaparameters["train_weight_table_params_mean"],
-            "std": metaparameters["train_weight_table_params_std"],
-            "scaler": metaparameters["train_weight_table_params_scaler"],
-        }
-        self.random_forest_kwargs = {
-            "n_estimators": metaparameters[
-                "train_random_forest_regressor_param_n_estimators"
-            ],
-            "criterion": metaparameters[
-                "train_random_forest_regressor_param_criterion"
-            ],
-            "max_depth": metaparameters[
-                "train_random_forest_regressor_param_max_depth"
-            ],
-            "min_samples_split": metaparameters[
-                "train_random_forest_regressor_param_min_samples_split"
-            ],
-            "min_samples_leaf": metaparameters[
-                "train_random_forest_regressor_param_min_samples_leaf"
-            ],
-            "min_weight_fraction_leaf": metaparameters[
-                "train_random_forest_regressor_param_min_weight_fraction_leaf"
-            ],
-            "max_features": metaparameters[
-                "train_random_forest_regressor_param_max_features"
-            ],
-            "min_impurity_decrease": metaparameters[
-                "train_random_forest_regressor_param_min_impurity_decrease"
-            ],
-        }
-        self.infer_path_adv_examples = metaparameters['infer_path_adv_examples']
-        self.infer_path_drebbin_x_train = metaparameters['infer_path_drebbin_x_train']
-        self.infer_path_drebbin_x_test = metaparameters['infer_path_drebbin_x_test']
-        self.infer_path_drebbin_y_train = metaparameters['infer_path_drebbin_y_train']
-        self.infer_path_drebbin_y_test = metaparameters['infer_path_drebbin_y_test']
+        
         self.infer_calc_drebbin_adv = metaparameters['infer_calc_drebbin_adv']
         self.infer_grad_magnitude = metaparameters['infer_grad_magnitude']
         self.infer_save_adv_examples = metaparameters['infer_save_adv_examples']
-        self.infer_stat_output_file = metaparameters['infer_stat_output_file']
         self.infer_aug_dataset_factor = metaparameters["infer_aug_dataset_factor"]
         self.infer_aug_bin_prob = metaparameters["infer_aug_bin_prob"]
         self.infer_generate_statistics = metaparameters["infer_generate_statistics"]
-        self.infer_load_drebbin = metaparameters["infer_load_drebbin"]
         self.infer_platform = metaparameters["infer_platform"]
         self.feature_importance = metaparameters["infer_feature_importance"]
         self.random_noise_augmentation = metaparameters["infer_random_noise_augmentation"]
         self.no_features_least = metaparameters["infer_no_features_least"]
         self.no_features_most = metaparameters["infer_no_features_most"]
+        self.infer_extra_data_augmentation = metaparameters["infer_extra_data_augmentation"]
+        self.train_random_forest_feature_importance = metaparameters["train_random_forest_feature_importance"]
+        self.infer_feature_extraction_method = metaparameters["infer_feature_extraction_method"]
+        self.infer_proximity_aggregation_method = metaparameters["infer_proximity_aggregation_method"]
+        # Drebbin dataset path in the container
+        self.drebbin_container_path = '/learned_parameters/models/id-00000001/cyber-apk-nov2023-vectorized-drebin'
+        # Adversarial examples dataset path in the container
+        self.infer_path_adv_examples = '/learned_parameters/models/id-00000001/save_adversarial_examples'
+        # Adversarial examples files in self.infer_path_adv_examples
+        self.infer_adv_examples_file_names = [
+            "X_modified_class01_pc0.npy",
+	        "X_modified_class10_pc0.npy",
+	        "X_modified_class01_pc1.npy", 
+	        "X_modified_class10_pc1.npy"
+        ]
+        # Statistics ouput file path in the container
+        self.infer_stat_output_file = '/learned_parameters/models/id-00000001/statistics.json'
+        self.poison_dataset_path = '/learned_parameters/models/id-00000001/poisoned_examples'
+        self.infer_feature_importance_path = '/learned_parameters/models/id-00000001/feature_importance/index_array.npy'
 
+        if self.infer_platform == 'local':
+            self.reference_model_dirpath = self.reference_model_dirpath[1:]
+            self.drebbin_container_path = self.drebbin_container_path[1:]
+            self.infer_path_adv_examples = self.infer_path_adv_examples[1:]
+            self.infer_stat_output_file = self.infer_stat_output_file[1:]
+            self.poison_dataset_path = self.poison_dataset_path[1:]
+            self.infer_feature_importance_path = self.infer_feature_importance_path[1:]
+        
     def write_metaparameters(self):
         metaparameters = {
             "infer_cyber_model_skew": self.model_skew["__all__"],
@@ -170,9 +166,7 @@ class Detector(AbstractDetector):
         Args:
             models_dirpath: str - Path to the list of model to use for training
         """
-        for random_seed in np.random.randint(1000, 9999, 10):
-            self.weight_table_params["random_seed"] = random_seed
-            self.manual_configure(models_dirpath)
+        pass
 
     def manual_configure(self, models_dirpath: str):
         """Configuration of the detector using the parameters from 
@@ -190,6 +184,7 @@ class Detector(AbstractDetector):
             join(models_dirpath, model)
             for model in listdir(models_dirpath)
         ]
+        print("model_path_list:", model_path_list)
         model_path_list = sorted(model_path_list)
         logging.info(f"Loading {len(model_path_list)} models...")
         (model_repr_dict, 
@@ -206,63 +201,6 @@ class Detector(AbstractDetector):
                     model_class,
                     models_padding_dict
                 )
-
-        check_models_consistency(model_repr_dict)
-
-        # Build model layer map to know how to flatten
-        logging.info("Generating model layer map...")
-        model_layer_map = create_layer_map(model_repr_dict)
-        with open(self.model_layer_map_filepath, "wb") as fp:
-            pickle.dump(model_layer_map, fp)
-        logging.info("Generated model layer map. Flattenning models...")
-
-        # Flatten models
-        flat_models = flatten_models(model_repr_dict, model_layer_map)
-        del model_repr_dict
-        logging.info("Models flattened. Fitting feature reduction...")
-
-        layer_transform = fit_feature_reduction_algorithm(
-            flat_models,
-            self.weight_table_params,
-            self.input_features
-        )
-
-        logging.info("Feature reduction applied. Creating feature file...")
-        X = None
-        y = []
-
-        for _ in range(len(flat_models)):
-            (model_arch, models) = flat_models.popitem()
-            model_index = 0
-
-            logging.info("Parsing %s models...", model_arch)
-            for _ in tqdm(range(len(models))):
-                model = models.pop(0)
-                y.append(model_ground_truth_dict[model_arch][model_index])
-                model_index += 1
-
-                model_feats = use_feature_reduction_algorithm(
-                    layer_transform[model_arch], model
-                )
-                if X is None:
-                    X = model_feats
-                    continue
-
-                X = np.vstack((X, model_feats * self.model_skew["__all__"]))
-
-        logging.info("Training RandomForestRegressor model...")
-        model = RandomForestRegressor(
-            **self.random_forest_kwargs,
-            random_state=0
-        )
-        model.fit(X, y)
-
-        logging.info("Saving RandomForestRegressor model...")
-        with open(self.model_filepath, "wb") as fp:
-            pickle.dump(model, fp)
-
-        self.write_metaparameters()
-        logging.info("Configuration done!")
 
     def grab_inputs(self, examples_dirpath):
         inputs_np = None
@@ -381,13 +319,8 @@ class Detector(AbstractDetector):
         results['no_adv_examples_01'] = len(inx_adv01)
         results['no_adv_examples_10'] = len(inx_adv10)
 
-        # Specify the file name
-        file_path = os.path.join(
-            self.reference_model_path,
-            self.infer_path_adv_examples
-        )
         # Writing JSON data
-        with open(file_path, 'w') as json_file:
+        with open(self.infer_stat_output_file, 'w') as json_file:
             json.dump(results, json_file, indent=4)
 
     def generate_adersarial_examples(
@@ -444,10 +377,10 @@ class Detector(AbstractDetector):
         model: DrebinNN,
         method: str,
         agg: str,
-        p_poison_model_ex_dirpath: str,
+        test_samples_path: str,
         feature_importance: bool = True,
         random_noise_augmentation: bool = True,
-        date_mode: str = 'drebinn'
+        date_mode: str = 'None'
     ):
 
         """ Calculates probability that model is poisoned using different
@@ -474,50 +407,49 @@ class Detector(AbstractDetector):
         # Prepare dataset ingestions
 
         reference_model_path = os.path.join(
-            self.reference_model_path,
+            self.reference_model_dirpath,
             'model.pt'
         )
         reference_model_samples_dirpath = os.path.join(
-            self.reference_model_path,
+            self.reference_model_dirpath,
             'clean-example-data'
         )
 
         if date_mode == 'drebinn':
 
             drebbin_np, _ = get_Drebbin_dataset(
-                self.reference_model_path,
-                self.infer_path_drebbin_x_train,
-                self.infer_path_drebbin_x_test,
-                self.infer_path_drebbin_y_train,
-                self.infer_path_drebbin_y_test,
+                self.drebbin_container_path
             )
+            if drebbin_np.size == 0:
+                logging.error(f"Drebbin set does not exist! Nothing to do!") 
+                sys.exit()
 
         elif date_mode == 'drebinn_adversarial':
+            
             adv_exm_class10_pc0 = np.load(os.path.join(
-                self.reference_model_path,
-                "adversarial_examples/X_modified_class10_pc0.npy"
+                self.infer_path_adv_examples,
+                self.infer_adv_examples_file_names[1]
                 )
             )
             adv_exm_class01_pc1 = np.load(os.path.join(
-                self.reference_model_path,
-                "adversarial_examples/X_modified_class01_pc1.npy"
+                self.infer_path_adv_examples,
+                self.infer_adv_examples_file_names[3]
                 )
             )
 
         elif date_mode == 'poison':
             poison_examples = np.load(os.path.join(
-                self.reference_model_path,
-                "poisoned_examples/poisoned_features.npy"
+                self.poison_dataset_path,
+                'poisoned_features.npy'
                 )
             )
         else:
             pass
 
         if feature_importance:
-            feature_importance_index = np.load(os.path.join(
-                self.reference_model_path,
-                'feature_importance/index_array.npy'
-                )
+
+            feature_importance_index = np.load(
+                self.infer_feature_importance_path
             )
         ##################################################################
 
@@ -525,7 +457,8 @@ class Detector(AbstractDetector):
         inputs_np, _ = self.grab_inputs(
             reference_model_samples_dirpath
         )
-        test_inputs_np, _ = self.grab_inputs(p_poison_model_ex_dirpath)
+        
+        test_inputs_np, _ = self.grab_inputs(test_samples_path)
         # Get access to the testing server samples
         inputs_np = np.concatenate([inputs_np, test_inputs_np])
         ##################################################################
@@ -582,12 +515,13 @@ class Detector(AbstractDetector):
             # This method is slow and requires a lot of memory.
             # Potential memory clogs may apear if large dataset X is provided.
 
-            if date_mode != 'drebinn_adversarial':
+            if date_mode not in ['drebinn_adversarial', 'None']:
                 msg = (
-                    "Shap is compatible with drebinn_adversarial "
-                    "date_mode option!"
+                    "Shap is compatible with drebinn_adversarial and None data "
+                    "augmentation option!"
                 )
                 raise Exception(msg)
+            
             test_features = get_shapley_values(model.model, [X], [X])   
             ref_features = get_shapley_values(reference_model.model, [X], [X])
 
@@ -819,92 +753,155 @@ class Detector(AbstractDetector):
             examples_dirpath:
             round_training_dataset_dirpath:
         """
-        self.reference_model_path = os.path.dirname(examples_dirpath)
-        if self.infer_platform == 'local':
-            self.reference_model_path = self.reference_model_path[2:]
-        with open(self.model_layer_map_filepath, "rb") as fp:
-            model_layer_map = pickle.load(fp)
 
-        potential_poison_data_path = os.path.dirname(model_filepath)
-        potential_poison_data_path = os.path.join(
-            potential_poison_data_path,
-            'clean-example-data'
-        )
-
-        # List all available model and limit to the number provided
-        model_path_list = sorted(
-            [
-                join(round_training_dataset_dirpath, 'models', model)
-                for model in listdir(join(round_training_dataset_dirpath, 'models'))
-            ]
-        )
-        logging.info(f"Loading %d models...", len(model_path_list))
-
-        model_repr_dict, _ = load_models_dirpath(model_path_list)
-        logging.info("Loaded models. Flattenning...")
-
-        with open(self.models_padding_dict_filepath, "rb") as fp:
-            models_padding_dict = pickle.load(fp)
-
-        for model_class, model_repr_list in model_repr_dict.items():
-            for index, model_repr in enumerate(model_repr_list):
-                model_repr_dict[model_class][index] = pad_model(model_repr, model_class, models_padding_dict)
-
-        # Flatten model
-        flat_models = flatten_models(model_repr_dict, model_layer_map)
-        del model_repr_dict
-        logging.info("Models flattened. Fitting feature reduction...")
-
-        layer_transform = fit_feature_reduction_algorithm(flat_models, self.weight_table_params, self.input_features)
-
-        model, model_repr, model_class = load_model(model_filepath)
-        model_repr = pad_model(model_repr, model_class, models_padding_dict)
-        flat_model = flatten_model(model_repr, model_layer_map[model_class])
-
-        if self.infer_load_drebbin:
-            inputs_np, labels_np = get_Drebbin_dataset(
-                self.reference_model_path,
-                self.infer_path_drebbin_x_train,
-                self.infer_path_drebbin_x_test,
-                self.infer_path_drebbin_y_train,
-                self.infer_path_drebbin_y_test,
-            )
-
-        if self.infer_generate_statistics: 
-            if not self.infer_load_drebbin:
-                msg = (
-                    "Set load_drebbin to True to generate statistics!"
-                )
-                raise Exception(msg)
-            self.generate_statistics_datasets(model, inputs_np, labels_np)
-
-        if self.infer_calc_drebbin_adv:
-            if not self.infer_load_drebbin:
-                msg = (
-                    "Set load_drebbin to calculate adv samples for Drebbin!"
-                )
-                raise Exception(msg)
-
-            list_adversarial_ex = self.generate_adersarial_examples(
-                model,
-                inputs_np
-            )
-            if self.infer_save_adv_examples:
-                save_adversarial_examples_binarry_classifier(
-                    self.infer_path_adv_examples,
-                    list_adversarial_ex)
-
+        model, _, _ = load_model(model_filepath)
         probability = self.get_poison_probability(
             model,
-            'jac',
-            'cosavg',
-            potential_poison_data_path,
+            self.infer_feature_extraction_method,
+            self.infer_proximity_aggregation_method,
+            examples_dirpath,
             self.feature_importance,
             self.random_noise_augmentation,
-            date_mode='drebinn_adversarial'
+            date_mode=self.infer_extra_data_augmentation
         )
 
-        my_dict = {get_model_name(model_filepath): probability}
-        save_dictionary_to_file(my_dict, result_filepath)
-        
+        if self.infer_platform == 'local':
+            my_dict = {get_model_name(model_filepath): probability}
+            save_dictionary_to_file(my_dict, result_filepath)
+        else:
+            with open(result_filepath, "w") as fp:
+                fp.write(probability)
+
         logging.info("Trojan probability: %s", probability)
+
+class Preprocess(Detector):
+    def __init__(self,
+        metaparameter_filepath,
+        learned_parameters_dirpath,
+        reference_model_dirpath,
+        reference_model_origin,
+        drebbin_dataset_dirpath,
+        poison_dataset_path
+        ):
+        # Initialize the parent class with its parameters
+        super().__init__(
+            metaparameter_filepath,
+            learned_parameters_dirpath,
+            reference_model_dirpath,
+        )
+        self.reference_model_origin = reference_model_origin
+        metaparameters = json.load(open(metaparameter_filepath, "r"))
+        self.infer_drebbin_dataset_exist = metaparameters["infer_drebbin_dataset_exist"]
+        self.infer_poison_dataset_exist = metaparameters["infer_poison_dataset_exist"]
+        # Copy reference model from the source to container folder
+        
+        if not os.path.isdir(self.reference_model_dirpath):
+            try:  
+                shutil.copytree(
+                    self.reference_model_origin,
+                    self.reference_model_dirpath
+                )
+                logging.info(f"Reference model copied successfully from "
+                        f"{self.reference_model_origin} to "
+                        f"{self.reference_model_dirpath}")
+            except Exception as e:
+                logging.error(f"Error occurred while copying the folder: {e}")
+        else:
+            logging.info(f"Reference model folder {self.reference_model_dirpath} exists! No need for files transfer!")
+
+        # Copy Drebbin dataset from source to container folder
+        print("drebbin_dataset_dirpath:", drebbin_dataset_dirpath)
+        print("self.drebbin_container_path:", self.drebbin_container_path)
+        if self.infer_drebbin_dataset_exist:
+            if not os.path.isdir(self.drebbin_container_path):
+                try:  
+                    shutil.copytree(
+                        drebbin_dataset_dirpath,
+                        self.drebbin_container_path
+                    )
+                    logging.info(f"Drebbin dataset copied successfully from "
+                                f"{drebbin_dataset_dirpath} to "
+                                f"{self.drebbin_container_path}")
+                except Exception as e:
+                    logging.error(f"Error occurred while copying the Drebbin folder: {e}")
+            else:
+                logging.info(f"Drebbin folder {self.drebbin_container_path} exists! No need for files transfer!")
+        
+        # Copy poisoned data
+         # Copy Drebbin dataset from source to container folder
+        if self.infer_poison_dataset_exist:
+            if not os.path.isdir(self.poison_dataset_path):
+                try:  
+                    shutil.copytree(
+                        poison_dataset_path,
+                        self.poison_dataset_path
+                    )
+                    logging.info(f"Poison dataset copied successfully from "
+                                f"{poison_dataset_path} to "
+                                f"{self.poison_dataset_path}")
+                except Exception as e:
+                    logging.error(f"Error occurred while copying the poisoned folder: {e}")
+            else:
+                logging.info(f"Poisoned folder {self.poison_dataset_path} exists! No need for files transfer!")
+
+    def manual_configure(self, model_filepath: str):
+        if self.infer_platform == 'local':
+            model_filepath = join(model_filepath[1:], "model.pt")
+        if self.infer_poison_dataset_exist:
+            self.load_drebbin()
+            self.feature_importance_calc()
+            self.generate_statistics(model_filepath)
+            self.get_adversarial_examples(model_filepath)
+        else:
+            logging.info("Nothing to do since Drebbin set is not available!")
+
+    def load_drebbin(self):
+
+        logging.info("Loading Drebbin dataset!")
+
+        self.inputs_np, self.labels_np = get_Drebbin_dataset(
+            self.drebbin_container_path
+        )
+        if self.inputs_np.size == 0 or self.labels_np.size == 0:
+            logging.info(f"Drebbin Dataset does not exist! Exiting the process!")
+            sys.exit()    
+
+
+    def feature_importance_calc(self):
+        if self.train_random_forest_feature_importance:
+            logging.info("Training random forest model for feature importance!")
+            
+            if not os.path.isdir(os.path.split(self.infer_feature_importance_path)[0]):
+                os.mkdir(os.path.split(self.infer_feature_importance_path)[0])
+
+            get_important_features(
+                self.inputs_np, 
+                self.labels_np, 
+                self.infer_feature_importance_path
+            )
+
+    def generate_statistics(self, model_filepath):
+        model, _, _ = load_model(model_filepath)
+        if self.infer_generate_statistics:
+            logging.info("Generating statistics!")
+            
+            self.generate_statistics_datasets(model, self.inputs_np, self.labels_np)   
+
+
+    def get_adversarial_examples(self, model_filepath):
+        model_filepath = join(model_filepath)
+        model, _, _ = load_model(model_filepath)
+        if self.infer_calc_drebbin_adv:
+            logging.info("Calculating adversarial examples!")
+            list_adversarial_ex = self.generate_adersarial_examples(
+                model,
+                self.inputs_np
+            )
+
+            if self.infer_save_adv_examples:
+                save_adversarial_examples_binarry_classifier(
+                    os.path.join(
+                        self.infer_path_adv_examples,
+                    ),
+                    list_adversarial_ex,
+                    self.infer_adv_examples_file_names)  

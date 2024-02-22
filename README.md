@@ -1,5 +1,19 @@
-This repo is adapted from [NIST's Round 17 example code](https://github.com/usnistgov/trojai-example/tree/cyber-apk-nov2023). 
+This repo is adapted from [NIST's Round 17 example code](https://github.com/usnistgov/trojai-example/tree/cyber-apk-nov2023). It contains code developed by the Perspecta Labs/Project Iliad "GIFT" team for the IARPA/TrojAI program. Code was developed by Razvan Stefanescu, Todd Huster, Peter Lin and Emmanuel Ekwedike.
 
+Contact: razvan.stefanescu@peratonlabs.com
+
+# Short description 
+The poison model detector compares features from the potential poisoned model with features from a clean reference model.
+We implemented four different features extraction methods based on jacobians, discrete derivatives, Shapley values and model outputs. To comperate and aggregate the results we used cosine similarities of averages, averages of cos similarities, jensen-shannon, MSE of the averages, MAE of the averages avg, and adversarial_examples. We also provided three extra data augmentation options based on Drebbin dataset, Drebbin adversarial and a Poisoned dataset. These options require the acquisition of the Drebbin and/or Poisoned datasets which are not provided in this repo but could potentially be released by TrojAI organizers A feature importance option is also provided in case a dataset is available for training a random forest model.
+
+Here are the existing tested combinations.
+
+| Method    | Cosavg | Avgcos | Jensen-Shannon | MSEavg | MAEavg | Adversarial Examples |
+|-----------|--------|--------|----------------|--------|--------|----------------------|
+| Jac       | Yes    | Yes    | No             | No     | No     | No                   |
+| DiscreteD | Yes    | Yes    | No             | No     | No     | No                   |
+| Model-Out | Yes    | Yes    | Yes            | Yes    | Yes    | Yes                  |
+| Shap      | Yes    | Yes    | No             | No     | No     | No                   |
 
 # Setup the Conda environment
 
@@ -7,30 +21,51 @@ This repo is adapted from [NIST's Round 17 example code](https://github.com/usni
 2. conda activate r17_update
 3. conda install pytorch=1.12.1 torchvision torchaudio cudatoolkit=11.3 -c pytorch
 4. pip install --upgrade pip
-5.  install tqdm jsonschema jsonargparse scikit-learn shap matplotlib
+5. pip install tqdm jsonschema jsonargparse scikit-learn shap matplotlib
 
-# Run inference outside of Singularity
+# Running the code outsite the Singularity container
+
+Two pipelines configure and infer are implemented. The configure prepares the dependencies whereas infer runs the poison model detector. The default configuration outside of Singularity container can be run as described below.
+
+(1) python entrypoint.py configure --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json  --learned_parameters_dirpath ./learned_parameters/ 
+
+
+(2) python entrypoint.py infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
+
+These steps are described in details below. 
+
+## (1) Run configure outside of Singularity container
+
+The configure mode must be run first with a minimum setup. It will copy the reference model to the container.
+
+python entrypoint.py configure --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json  --learned_parameters_dirpath ./learned_parameters/ 
+
+In case Drebbin and Poison datasets exist, the configure mode will copy them to the container, train a surrogate random forest model and get the feature importance, generate adversarial examples and compute statistics for the reference model. Set up the --drebbin_dataset_dirpath and --poison_dataset_path accordingly with appropriate paths. To process these datasets, metaparameters infer_drebbin_dataset_exist and infer_poison_dataset_exist must be set to true. Set also to true metaparameter train_random_forest_feature_importance to generate feature importance vector, metaparameter infer_calc_drebbin_adv to generate drebbin adversarial examples and metaparameter infer_generate_statistics to calculate statistics for the reference model. 
+
+python entrypoint.py configure --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json  --learned_parameters_dirpath ./learned_parameters/ --drebbin_dataset_dirpath ~/cyber-apk-nov2023-vectorized-drebin --poison_dataset_path ~/poison_data/
+
+## (2) Run inference outside of Singularity container
 
 ```
 python entrypoint.py infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
 ```
 
-# Build a new container 
+# Build a new container - This option is needed in case you want to submit your code to TrojAI test server to evaluate your results. Set the metaparameter infer_platform to test_server.
 
 ```
-sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac.simg example_trojan_detector.def
+sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac_public.simg
 ```
 
-# Container usage: Inferencing Mode - What is the difference between running outside of Singularity and this option?
+# Container usage: Inferencing Mode - This option is needed in case you want to submit your code to TrojAI test server to evaluate your results. 
 
 ```
-singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
+singularity run --nv ./cyber-apk-nov2023_sts_cosjac_public.simg infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
 ```
 
-# Remote terminal to access google drive via API - Setup rclone to interface with google drive from remote terminal 
+# Remote terminal to access google drive via API - Setup rclone to interface with google drive from remote terminal (for uploading containter to the TrojAI test server) 
 
 1. Set Up an SSH Tunnel With PuTTY
-   a. Hostname – username@ml-9 (rstefanescu@ml-9)
+   a. Hostname – username@ml-9 
    b. Left menu – select ssh and then tunnels
    c. In Source Port tab add 53682 and in destination add localhost: 53682
    d. Open and insert password. 
@@ -48,7 +83,7 @@ singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath 
    h. Advanced Config: Say 'No' to advanced config.
    i. Auto-Config:  Select Yes.
    j. Copy the URL provided by rclone into a web browser.
-   k. Log into your Google account - perspecta.gift@gmail.com
+   k. Log into your Google account - user@gmail.com
    l. Go back to the SSH window – Finish configuration by selecting No to google team or so.
    m. Test API connection with google drive
    	i.  rclone ls gdrive:
@@ -56,59 +91,50 @@ singularity run --nv ./cyber-apk-nov2023_sts_cosjac.simg infer --model_filepath 
 
    Complete description available at - https://www.youtube.com/watch?v=n7yB1x2vhKw
 
-# Run probability scores for all test models locally
+# Run probability scores for all test models locally - This is useful when multiple test models are evaluated using our detector.
 
-python run_all_models.py --test_models_path /home/rstefanescu/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/models/ --metadata_path /home/rstefanescu/r17_dataset/rev2/cyber-apk-nov2023-train-rev2/METADATA.csv --dictionary_path /home/rstefanescu/r17/scratch/result.json --pandas_path /home/rstefanescu/r17/scratch/output.csv
+Access to a collection of models is needed. Set up the path for the test models in --test_models_path. Don't forget to set the metaparameter infer_platform to local since it can only run on the local system. With the current setup, the system must have two GPUs. The distributed implementation requires locals tunning for no_available_GPUs and max_workers (number of threads). 
 
-# Experimental Results
-## Jacobian Similarity
-We compute the Jacobian of the reference model and test model at a set of data points. We then compute the cosine similarity of the Jacobians at each of those points. We then averager over the set of points and turn into a probability. 
-### Real data
-We use all provided sample data from the reference model and the test model. There are only 3 samples included with the reference model. Test models may have the same data.
-- Results: 0.41764 AUC
-### Random Boolean data
-We generate 1000 random samples, uniform over [0,1]^991.
-- Results: 0.47833 AUC
+python run_all_models.py --test_models_path ~/cyber-apk-nov2023-train-rev2/models/ --metadata_path ~/cyber-apk-nov2023-train-rev2/METADATA.csv --dictionary_path ~/r17/scratch/ --pandas_path ~/r17/scratch/output.csv
 
-We also tried combining this with real data, no results of interest.
-### Perturbed real data
-We copy the real samples a few hunded times, then randomly swap 1% of features.
-- Results: 0.50778 AUC
-### cosine between average jacobian
-In previous experiments, I computed cosines between the testa and ref jacobians on different data samples, then averaged.  In this experiment, I avergaged the jacobians first, then took the cosine.
-- Results: 0.48403 AUC (random Boolean data)
-- Results:  0.83972 AUC (perturbed real data) (NOT 0.6)
+# Code capabilities
 
-We copy 852 of the real testing samples a few times, then randomly swap 1% of features.
-- Results: 0.79 AUC
+# Methods
 
-We copy all the real testing samples a few times, then randomly swap 1% of features.
-- Results: 0.79111 AUC
+To extract features from the tested and reference models we've calculat jacobians, shapley values, discrete derivatives and outputs. The metaparameter infer_feature_extraction_method can take any of the following options - "jac", "shap", "discrete_deriv", or "model_out". The entire set of metaparameters controlling the methods configurations is available in metaparameters.json file. 
 
-We copy all the real training samples a few times, then randomly swap 1% of features.
-- Results: 0.79139 AUC
+# Proximity and aggregation methods
 
-We use all the real training samples.
-- Results: 0.49472 AUC
+The detector compares the exctracted features by using one of the following proximity and aggregation methods: avgcos, cosavg, jensen-shannon, MSEavg, MAEavg, adversarial_examples. The prefered method can be set in the metaparameter infer_proximity_aggregation_method.  
 
-We use all the real testing samples.
-- Results: 0.50111 AUC
-### Experiments with p
-We copy all the real training samples 5 times, then randomly swap p*100% of features.
+Check the table above for the tested options. 
 
-- p=0.002: Results: 0.75417 AUC
-- p=0.005: Results: 0.77 AUC
-- p=0.01: Results: 0.79139 AUC
-- p=0.02: Results: 0.80694 AUC
-- p=0.03: Results: 0.80028 AUC
-- p=0.05: Results: 0.77833 AUC
-- p=0.1: Results: 0.31778 AUC (!)
+# Dataset 
 
-### cosine output
-I put in perturbed real data, computed the outputs, then computed the cosine between the output vectors
-- Results: 0.69292 AUC
-- Results with different output scaling: 0.66472 AUC (this change shouldn't affect AUC, so disrepancy must be from sample noise)
-### evil config
-Since the average cosine jacobian with real data was so bad, I flipped the sign. This is evil.
-- Results: 0.54722
+The detector will work on a three samples dataset provided in models/id-00000001/clean-example-data/. By default the option infer_random_noise_augmentation is set to true in the metaparameters.json and together with the metaparameter infer_aug_dataset_factor expand the three samples dataset by applying random binary perturbations. 
 
+# Extra data augmentation methods. 
+
+To run the code using these options, the Drebbin dataset and/or Poison dataset must be available. Check the (1) Run configure outside of Singularity container section above on how to prepare the dependencies. The following options are available ["drebinn", "drebinn_adversarial", "poison"] in addition to the default "None". Set metaparameter infer_extra_data_augmentation accordingly. 
+
+## Running detector with Drebbin dataset
+
+Drebbin dataset contains four Numpy binary files. Limit metaparameter infer_aug_dataset_factor to 1 since the dataset has a large number of samples. The max_workers should be limited to 8 if run_all_models.py pipeline is used to evaluate multiple models.  
+
+Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "drebinn".
+
+## Running detector with Drebin adversarial dataset 
+
+The adversarial examples for the Drebbin dataset and reference model learned_parameters/models/id-00000001/model.pt are required. Section (1) Run configure outside of Singularity container explains how to generate them using fast gradient sign method.
+
+Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "drebinn_adversarial". The max_workers should be limited to 16 if run_all_models.py pipeline is used to evaluate multiple models. 
+
+## Running detector with Poison dataset
+
+If poison dataset is available, Section (1) Run configure outside of Singularity container explains how to copy the data to the appropriate location. 
+
+Running the detector with this option is enabled by setting metaparameter infer_extra_data_augmentation to "poison".
+
+# Feature Importance
+Feature importance improves the ROC-AUC scores signficantly. It requires the Drebbin dataset and a random forest was trained to calculate the feature importance in  Section (1) Run configure outside of Singularity container. 
+Running the detector with this option requires setting infer_feature_importance metaparameter to true. 

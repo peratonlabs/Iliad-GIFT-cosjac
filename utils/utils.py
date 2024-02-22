@@ -8,6 +8,7 @@ from copy import deepcopy
 
 import shap
 from utils.drebinnn import DrebinNN
+from utils.models import build_random_forest_classifier
 
 import torch.nn.functional as F
 
@@ -51,8 +52,6 @@ def avgcosim(v1, v2, eps=1e-8):
         temp2 = v2[inx, :, :]/(np.linalg.norm(v2[inx, :, :]) + eps)
         avgcosim_val += (temp1*temp2).sum()
     return avgcosim_val/dim1
-
-
 
 
 def get_class_r14(truth_fn):
@@ -443,8 +442,12 @@ def scale_probability(outcome: float, method: str) -> str:
     Output:
         The outcome is scaled between 0 and 1 and converted to string.
     '''
-    if method != 'jensen-shannon':
+    if method in ["cosavg", "avgcos"]:
         outcome = 0.5*(1-outcome)
+    if method in ["MSEavg", "MAEavg"]:
+        outcome = outcome/1000
+    if method == 'adversarial_examples':
+        outcome = outcome/10000
     probability = np.clip(outcome, 1e-5, 0.99999)
     return str(probability)
 
@@ -497,7 +500,7 @@ def identify_adversarial_examples(
 def save_adversarial_examples_binarry_classifier(
     path_adv_examples: str,
     list_samples_adv_examples: list,
-    reference_model_dirpath: str = '/models/id-00000001'
+    adv_examples_file_names: list
 ):
     '''
     For a binary classifier, we calculated the adversarial examples
@@ -506,19 +509,16 @@ def save_adversarial_examples_binarry_classifier(
     torch arrays in the list are then saved to disk as separate files.
     Args:
         path_adv_examples - folder path disk destination
-        list_samples_adv_examples - list of 4 torch arrays with 
+        list_samples_adv_examples - list of 4 torch arrays with
                         adversarial examples 
+        adv_examples_file_names - list with the file names of adversarial
+                        examples
     '''
-    list_file_names = [
-        'X_modified_class01_pc0.npy',
-        'X_modified_class10_pc0.npy',
-        'X_modified_class01_pc1.npy',
-        'X_modified_class10_pc1.npy'
-    ]
+    if not os.path.isdir(path_adv_examples):
+        os.mkdir(path_adv_examples)
 
-    for inx, file_name in enumerate(list_file_names):
+    for inx, file_name in enumerate(adv_examples_file_names):
         file_path = os.path.join(
-            reference_model_dirpath,
             path_adv_examples,
             file_name
         )
@@ -529,57 +529,41 @@ def save_adversarial_examples_binarry_classifier(
 
 
 def get_Drebbin_dataset(
-    reference_model_dirpath: str,
-    path_drebbin_x_train: str,
-    path_drebbin_x_test: str,
-    path_drebbin_y_train: str,
-    path_drebbin_y_test: str,
+    drebbin_dataset_dirpath: str,
 ) -> np.ndarray:
     '''Load Drebbin dataset features and store it 
     in a numpy array structure
     Args:
-        reference_model_dirpath: main path
-        path_drebbin_x_train: path to train dataset
-        path_drebbin_x_test: path to test dataset
-        path_drebbin_y_train: path to train labels dataset
-        path_drebbin_y_test: path to test labels dataset
+        drebbin_dataset_dirpath: main path
     Output:
         inputs_np - concatenated train and test features data
         label_np - concatenated train and test labels data
     '''
-    drebinn_x_train = np.load(os.path.join(
-        reference_model_dirpath,
-        path_drebbin_x_train
-        )
-    )
-    drebinn_x_test = np.load(os.path.join(
-        reference_model_dirpath,
-        path_drebbin_x_test
-        )
-    )
 
-    # Load test model samples
+    drebin_paths = [
+        "x_train_sel.npy",
+        "x_test_sel.npy",
+        "y_train_sel.npy",
+        "y_test_sel.npy"
+    ]
+    
+    datasets = []
+    for path in drebin_paths:
+        full_path = os.path.join(drebbin_dataset_dirpath, path)
+        if not os.path.isfile(full_path):
+            return np.empty((0,)), np.empty((0,))
+        else:
+            datasets.append(np.load(full_path))
+
     inputs_np = np.concatenate([
-        drebinn_x_train,
-        drebinn_x_test
+        datasets[0],
+        datasets[1]
         ]
     )
 
-    drebinn_y_train = np.load(os.path.join(
-        reference_model_dirpath,
-        path_drebbin_y_train
-        )
-    )
-    drebinn_y_test = np.load(os.path.join(
-        reference_model_dirpath,
-        path_drebbin_y_test
-        )
-    )
-
-    # Load test model samples
     label_np = np.concatenate([
-        drebinn_y_train,
-        drebinn_y_test
+        datasets[2],
+        datasets[3]
         ]
     )
     return inputs_np, label_np
@@ -638,7 +622,7 @@ def get_model_name(model_filepath: str) -> str:
     return path_components[-2] if len(path_components) > 1 else None
 
 
-def save_dictionary_to_file(my_dict: dict, filepath: str):
+def save_dictionary_to_file(my_dict: dict, filepath: str, aug: bool = False):
     '''
     Saves a dictionary to file. If the file exists
     my_dict is augmented to the existing dictionary
@@ -646,14 +630,17 @@ def save_dictionary_to_file(my_dict: dict, filepath: str):
     Args:
         my_dict - dictionary 
         filepath - path to save dictionary
+        aug - boolean checking if file exists
+              to update its content
     '''
     # Check if the file exists
-    if os.path.exists(filepath):
-        # Read the existing data
-        with open(filepath, 'r') as file:
-            existing_data = json.load(file)
-            # Update your dictionary with the existing data
-        my_dict.update(existing_data)
+    if aug:
+        if os.path.exists(filepath):
+            # Read the existing data
+            with open(filepath, 'r') as file:
+                existing_data = json.load(file)
+                # Update your dictionary with the existing data
+            my_dict.update(existing_data)
 
     # Write the (updated) dictionary back to the file
     with open(filepath, 'w') as file:
@@ -692,3 +679,24 @@ def extract_subset_features(
                     :
                 ]
     return subset_features
+
+
+def get_important_features(
+        X: np.array,
+        labels: np.array,
+        path: str
+):
+    '''
+    Train a random forest model, get the sorted 
+    features importance and save it to disk
+    Inputs:
+        X - input features
+        labels - classification labels
+        path - disk location to save features importance
+               vector
+    '''
+
+    rfmodel = build_random_forest_classifier(X, labels)
+    importances = rfmodel.feature_importances_
+    indices = np.argsort(importances)[::-1]
+    np.save(path, indices)

@@ -10,144 +10,6 @@
   "additionalProperties": false,
   "type": "object",
   "properties": {
-	"infer_cyber_model_skew": {
-		"description": "Skew parameters for all models of the cyber round.",
-		"type": "number",
-		"minimum": 0.01,
-		"maximum": 5.0,
-		"suggested_minimum": 0.3,
-		"suggested_maximum": 0.75
-	},
-	"train_input_features":  {
-		"description": "The input features for training.",
-		"type": "integer",
-		"minimum": 5,
-		"maximum": 2000,
-		"suggested_minimum": 750,
-		"suggested_maximum": 2200
-	},
-	"train_weight_table_random_state": {
-		"description": "Random state for weight table during training.",
-		"type": "integer",
-		"minimum": 1,
-		"maximum": 200,
-		"suggested_minimum": 75,
-		"suggested_maximum": 150
-	},
-	"train_weight_table_params_mean": {
-		"description": "Mean of the normal distribution used for the weight table.",
-		"type": "number",
-		"minimum": 0,
-		"maximum": 1.0,
-		"suggested_minimum": 0.25,
-		"suggested_maximum": 0.75
-	},
-	"train_weight_table_params_std": {
-		"description": "Standard deviation of the normal distribution used for the weight table.",
-		"type": "number",
-		"minimum": 0,
-		"maximum": 1.0,
-		"suggested_minimum": 0.01,
-		"suggested_maximum": 0.1
-	},
-	"train_weight_table_params_scaler": {
-		"description": "Multiply all items of the weight table by this number (float).",
-		"type": "number",
-		"minimum": 0,
-		"maximum": 5.0,
-		"suggested_minimum": 0.1,
-		"suggested_maximum": 2.5
-	},
-	"train_random_forest_regressor_param_n_estimators": {
-		"description": "Number of trees in the forest.",
-		"type": "integer",
-		"minimum": 1,
-		"maximum": 200,
-		"suggested_minimum": 75,
-		"suggested_maximum": 150
-	},
-	"train_random_forest_regressor_param_criterion": {
-		"description": "Function to measure the quality of a split.",
-		"enum": ["squared_error", "absolute_error", "friedman_mse", "poisson"]
-	},
-	"train_random_forest_regressor_param_max_depth": {
-		"description": "The maximum depth of the tree",
-		"type": "integer",
-		"minimum": 1,
-		"maximum": 20,
-		"suggested_minimum": 1,
-		"suggested_maximum": 20
-	},
-	"train_random_forest_regressor_param_min_samples_split": {
-		"description": "The minimum number of samples required to split an internal node.",
-		"type": "integer",
-		"minimum": 1,
-		"maximum": 5,
-		"suggested_minimum": 1,
-		"suggested_maximum": 2
-	},
-	"train_random_forest_regressor_param_min_samples_leaf": {
-		"description": "The minimum number of samples required to be at a leaf node.",
-		"type": "integer",
-		"minimum": 1,
-		"maximum": 5,
-		"suggested_minimum": 1,
-		"suggested_maximum": 2
-	},
-	"train_random_forest_regressor_param_min_weight_fraction_leaf": {
-		"description": "The minimum weighted fraction of the sum total of weights (of all the input samples) required to be at a leaf node.",
-		"type": "number",
-		"minimum": 0.0,
-		"maximum": 1.0,
-		"suggested_minimum": 0.0,
-		"suggested_maximum": 1.0
-	},
-	"train_random_forest_regressor_param_max_features": {
-		"description": "The number of features to consider when looking for the best split.",
-		"type": "number",
-		"minimum": 0.0,
-		"maximum": 2.0,
-		"suggested_minimum": 0.0,
-		"suggested_maximum": 2.0
-	},
-	"train_random_forest_regressor_param_min_impurity_decrease": {
-		"description": "A node will be split if this split induces a decrease of the impurity greater than or equal to this value.",
-		"type": "number",
-		"minimum": 0.0,
-		"maximum": 2.0,
-		"suggested_minimum": 0.0,
-		"suggested_maximum": 2.0
-	},
-	"infer_stat_output_file": {
-		"description": "Path to output statistics file",
-		"enum": ["statistics.json"],
-		"type": "string"
-	},
-	"infer_path_adv_examples": {
-		"description": "Path to save adversarial examples from Drebbin dataset",
-		"enum": ["save_adversarial_examples/statistics.json"],
-		"type": "string"
-	},
-	"infer_path_drebbin_x_train": {
-		"description": "Path to drebbin x train dataset",
-		"enum": ["cyber-apk-nov2023-vectorized-drebin/x_train_sel.npy"],
-		"type": "string"
-	},
-	"infer_path_drebbin_x_test": {
-		"description": "Path to drebbin x test dataset",
-		"enum": ["cyber-apk-nov2023-vectorized-drebin/x_test_sel.npy"],
-		"type": "string"
-	},
-	"infer_path_drebbin_y_train":{
-		"description": "Path to drebbin y train dataset",
-		"enum": ["cyber-apk-nov2023-vectorized-drebin/y_train_sel.npy"],
-		"type": "string"
-	},
-	"infer_path_drebbin_y_test":{
-		"description": "Path to drebbin y test dataset",
-		"enum": ["cyber-apk-nov2023-vectorized-drebin/y_test_sel.npy"],
-		"type": "string"
-	},
 	"infer_calc_drebbin_adv": {
 		"description": "Flag for calculating drebbin adversarial examples",
 		"enum": [true, false],
@@ -187,11 +49,6 @@
 		"enum": [true, false],
 		"type": "boolean"
 	},
-	"infer_load_drebbin": {
-		"description": "Flag for loading Drebbin dataset",
-		"enum": [true, false],
-		"type": "boolean"
-	},
 	"infer_platform":{
 		"description": "Platform where the code will be run",
 		"enum": ["local", "test_server"],
@@ -222,6 +79,37 @@
 		"maximum": 200,
 		"suggested_minimum": 1,
 		"suggested_maximum": 200
+	},
+	"infer_extra_data_augmentation":{
+		"description": "Options to augment the three samples dataset",
+		"enum": ["drebinn", "drebinn_adversarial", "poison", "None"],
+		"type": "string"
+	},
+	"train_random_forest_feature_importance":{
+		"description": "Option to train a random forest model for feature importance",
+		"enum": [true, false],
+		"type": "boolean"
+	},
+	"infer_feature_extraction_method": {
+		"description": "Method used to extract features of a model and dataset!!!",
+		"enum": ["jac", "shap", "discrete_deriv", "model_out"],
+		"type": "string"
+	},
+	"infer_proximity_aggregation_method": {
+		"description": "Method used to compare and aggregate extracted features from the models!!!",
+		"enum": ["avgcos", "cosavg", "jensen-shannon", "MSEavg", "MAEavg", "adversarial_examples"],
+		"type": "string"
+	},
+	"infer_drebbin_dataset_exist": {
+		"description": "Boolean parameter indicating the presence of the Drebbin dataset.",
+		"enum": [true, false],
+		"type": "boolean"
+	},
+	"infer_poison_dataset_exist": {
+		"description": "Boolean parameter indicating the presence of the poison dataset.",
+		"enum": [true, false],
+		"type": "boolean"
 	}
   }
 }
+
