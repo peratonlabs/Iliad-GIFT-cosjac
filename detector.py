@@ -847,7 +847,7 @@ class Preprocess(Detector):
     def manual_configure(self, model_filepath: str):
         if self.infer_platform == 'local':
             model_filepath = join(model_filepath[1:], "model.pt")
-        if self.infer_poison_dataset_exist:
+        if self.infer_drebbin_dataset_exist:
             self.load_drebbin()
             self.feature_importance_calc()
             self.generate_statistics(model_filepath)
