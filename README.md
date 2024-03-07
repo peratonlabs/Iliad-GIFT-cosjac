@@ -15,15 +15,23 @@ Here are the existing tested combinations.
 | Model-Out | Yes    | Yes    | Yes            | Yes    | Yes    | Yes                  |
 | Shap      | Yes    | Yes    | No             | No     | No     | No                   |
 
-# Setup the Conda environment
+# Setup
 
-1. conda create -n r17_update python=3.7.13
-2. conda activate r17_update
-3. conda install pytorch=1.12.1 torchvision torchaudio cudatoolkit=11.3 -c pytorch
-4. pip install --upgrade pip
-5. pip install tqdm jsonschema jsonargparse scikit-learn shap matplotlib
+## Create the conda environment
 
-# Running the code outsite the Singularity container
+```
+conda create -n r17_update python=3.7.13
+conda activate r17_update
+conda install pytorch=1.12.1 torchvision torchaudio cudatoolkit=11.3 -c pytorch
+pip install --upgrade pip
+pip install tqdm jsonschema jsonargparse scikit-learn shap matplotlib
+```
+
+## Set up data
+
+To enable all option for TrojAI round 17, place the Drebbin dataset in the ?? directory.  Also, do x,y,z?
+
+# Running the code outside the Singularity container
 
 Two pipelines configure and infer are implemented. The configure prepares the dependencies whereas infer runs the poison model detector. The default configuration outside of Singularity container can be run as described below.
 
@@ -58,7 +66,9 @@ This option is needed in case you want to submit your code to TrojAI test server
 sudo singularity build --force ./cyber-apk-nov2023_sts_cosjac_public.simg
 ```
 
-# Container usage: Inferencing Mode 
+
+# Container usage: Inferencing Mode
+
 
 This option is needed in case you want to submit your code to TrojAI test server to evaluate your results. 
 
@@ -66,42 +76,17 @@ This option is needed in case you want to submit your code to TrojAI test server
 singularity run --nv ./cyber-apk-nov2023_sts_cosjac_public.simg infer --model_filepath ./models/id-00000001/model.pt --result_filepath ./scratch/result.txt --scratch_dirpath ./scratch --examples_dirpath ./models/id-00000001/clean-example-data --metaparameters_filepath ./metaparameters.json --schema_filepath ./metaparameters_schema.json --round_training_dataset_dirpath ./ --learned_parameters_dirpath ./learned_parameters
 ```
 
-# Remote terminal to access google drive via API 
-
-Setup rclone to interface with google drive from remote terminal (for uploading containter to the TrojAI test server). 
-
-1. Set Up an SSH Tunnel With PuTTY
-   a. Hostname – username@ml-9 
-   b. Left menu – select ssh and then tunnels
-   c. In Source Port tab add 53682 and in destination add localhost: 53682
-   d. Open and insert password. 
-2. Install rclone (I installed it on ml-9)
-   a. sudo apt update
-   b. sudo apt install rclone
-3. In the SSH Tunnel terminal just run - rclone config
-   a. Create a New Remote - When prompted, choose to create a new remote (typically by entering n).
-   b. Name the Remote: Enter a name for your remote (e.g., gdrive).
-   c. Storage Type: You'll be presented with a list of storage types. Enter the number or alias corresponding to Google Drive - drive.
-   d. Client ID and Secret: press Enter to use the defaults.
-   e. Scope: For full access to all files, choose the option with full access – 1.
-   f. Root Folder ID: press Enter to use the defaults.
-   g. Service Account: leave this blank (press Enter)
-   h. Advanced Config: Say 'No' to advanced config.
-   i. Auto-Config:  Select Yes.
-   j. Copy the URL provided by rclone into a web browser.
-   k. Log into your Google account - user@gmail.com
-   l. Go back to the SSH window – Finish configuration by selecting No to google team or so.
-   m. Test API connection with google drive
-   	i.  rclone ls gdrive:
-        ii. Upload container - rclone copy container_name gdrive:/
-
-   Complete description available at - https://www.youtube.com/watch?v=n7yB1x2vhKw
-
-# Run probability scores for all test models locally 
+# Run probability scores for all test models locally
 
 This is useful when multiple test models are evaluated using our detector. Access to a collection of models is needed. Set up the path for the test models in --test_models_path. Don't forget to set the metaparameter infer_platform to local since it can only run on the local system. With the current setup, the system must have two GPUs. The distributed implementation requires locals tunning for no_available_GPUs and max_workers (number of threads). 
 
 python run_all_models.py --test_models_path ~/cyber-apk-nov2023-train-rev2/models/ --metadata_path ~/cyber-apk-nov2023-train-rev2/METADATA.csv --dictionary_path ~/r17/scratch/ --pandas_path ~/r17/scratch/output.csv
+
+## Run probability scores for all test models locally for multiple metaparameters configurations
+
+To run multiple metaparameters configurations, the user must specify the metaparameters folder with metaparameters.json files, test_models_path, metadata file containing models poison information and output_folder. A collection of metaparameters files is available in the repository at metaparameters_configs.
+
+python run_multi_metaparameters_experiments.py --metaparameters_folder metaparameters_configs/extra_data_augmentation_None/ --test_models_path ~/cyber-apk-nov2023-train-rev2/models/ --metadata_path  ~/cyber-apk-nov2023-train-rev2/METADATA.csv --output_folder scratch/
 
 # Code capabilities
 

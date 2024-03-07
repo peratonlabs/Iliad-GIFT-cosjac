@@ -80,6 +80,13 @@ parser.add_argument(
     required=True
 )
 
+parser.add_argument(
+    "--metaparameters_file_path",
+    type=str,
+    help="Metaparameters file path",
+    required=True
+)
+
 # Parse the arguments
 args = parser.parse_args()
 
@@ -108,6 +115,8 @@ with ThreadPoolExecutor(max_workers=8) as executor:
 
 df = pd.read_csv(args.metadata_path)
 
+metaparameters = json.load(open(args.metaparameters_file_path, "r"))
+
 pattern = os.path.join(args.dictionary_paths, 'id*.json')
 
 # Find all files matching the pattern
@@ -120,9 +129,17 @@ for file_path in output_files:
         existing_data = json.load(file)
     my_dict.update(existing_data)
 
+output_file = (
+    metaparameters['infer_feature_extraction_method'] +
+    '_' + 
+    metaparameters['infer_proximity_aggregation_method'] +
+    '_' + 
+    'result.json'
+)
+
 save_dictionary_to_file(
     my_dict,
-    os.path.join(args.dictionary_paths, 'result.json')
+    os.path.join(args.dictionary_paths, output_file)
 )
 
 for file_path in output_files:
@@ -144,7 +161,29 @@ merged_df['poisoned'] = merged_df['poisoned'].astype(int)
 # Apply roc_auc_score
 auc_score = roc_auc_score(merged_df['poisoned'], merged_df['probability'])
 print(f'ROC AUC Score: {auc_score}')
-merged_df.to_csv(args.pandas_path, index=False)
+
+output_file = (
+    metaparameters['infer_feature_extraction_method'] +
+    '_' + 
+    metaparameters['infer_proximity_aggregation_method'] +
+    '_' + 
+    'roc_auc.json'
+)
+
+save_dictionary_to_file(
+    {'auc_score': auc_score},
+    os.path.join(args.dictionary_paths, output_file)
+)
+
+output_file = (
+    metaparameters['infer_feature_extraction_method'] +
+    '_' + 
+    metaparameters['infer_proximity_aggregation_method'] +
+    '_' + 
+    'output.csv'
+)
+
+merged_df.to_csv(os.path.join(args.pandas_path, output_file), index=False)
 end_time = time.time()
 # Calculate the runtime
 runtime = end_time - start_time

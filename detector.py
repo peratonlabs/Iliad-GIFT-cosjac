@@ -810,8 +810,8 @@ class Preprocess(Detector):
             logging.info(f"Reference model folder {self.reference_model_dirpath} exists! No need for files transfer!")
 
         # Copy Drebbin dataset from source to container folder
-        print("drebbin_dataset_dirpath:", drebbin_dataset_dirpath)
-        print("self.drebbin_container_path:", self.drebbin_container_path)
+        logging.info("drebbin_dataset_dirpath: %s", drebbin_dataset_dirpath)
+        logging.info("self.drebbin_container_path: %s", self.drebbin_container_path)
         if self.infer_drebbin_dataset_exist:
             if not os.path.isdir(self.drebbin_container_path):
                 try:  

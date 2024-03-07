@@ -1,0 +1,19 @@
+{
+	"infer_platform": "local",	
+	"infer_drebbin_dataset_exist": false,
+	"infer_poison_dataset_exist": false,
+	"infer_feature_extraction_method": "model_out",
+	"infer_proximity_aggregation_method": "avgcos",
+	"infer_extra_data_augmentation": "drebinn_adversarial",
+	"infer_random_noise_augmentation": true,
+	"infer_aug_dataset_factor": 100,
+	"infer_aug_bin_prob": 0.009,
+	"infer_calc_drebbin_adv": false,
+	"infer_save_adv_examples": true,
+	"infer_grad_magnitude": 0.0001,
+	"infer_generate_statistics": false,	
+	"train_random_forest_feature_importance": false,
+	"infer_feature_importance": false,
+	"infer_no_features_least": 80,
+	"infer_no_features_most": 20
+}
